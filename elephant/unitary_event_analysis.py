@@ -1,26 +1,51 @@
 # -*- coding: utf-8 -*-
 """
+
+Synopsis
+--------
+
 Unitary Event (UE) analysis is a statistical method that
-enables to analyze in a time resolved manner excess spike correlation between
-simultaneously recorded neurons by comparing the empirical spike coincidences
-(precision of a few ms) to the expected number based on the firing rates of
-the neurons see [#Gruen99]_.
+analyzes excess spike correlation between simultaneously recorded neurons in a
+time resolved manner by comparing the empirical spike coincidences to the
+expected number based on the firing rates of the neurons see [#Gruen99]_.
 
-Detailed introduction and tutorial of method goes here.
 
-:ref:`Tutorial on using Unitary Events <ipynb/unitary_events.ipynb>` 
+Background
+----------
+
+It has been proposed that cortical neurons organize dynamically into functional
+groups (“cell assemblies”) by the temporal structure of their joint spiking
+activity. The Unitary Events analysis method detects conspicuous patterns of
+synchronous spike activity among simultaneously recorded single neurons. The
+statistical significance of a pattern is evaluated by comparing the empirical
+number of occurrences to the number expected given the firing rates of the
+neurons. Key elements of the method are the proper formulation of the null
+hypothesis and the derivation of the corresponding count distribution of
+synchronous spike events used in the significance test. The analysis is
+performed in a sliding window manner and yields a time-resolved measure of
+significant spike synchrony.
+
+
+Examples
+--------
+
+:ref:`Tutorial on using Unitary Events <ipynb/unitary_events.ipynb>`
+
+Run tutorial interactively: 
 
 .. image:: https://mybinder.org/badge.svg 
    :target: https://mybinder.org/v2/gh/INM-6/elephant/enh/clean_ue?filepath=doc/ipynb/unitary_events.ipynb
 
-**References:**
 
-.. [#Gruen99] Gruen S, Diesmann M, Grammont F, Riehle A, Aertsen A (1999) TITLE 
+References
+----------
+
+.. [#Gruen99] Gruen S, Diesmann M, Grammont F, Riehle A, Aertsen A (1999) TITLE
    J Neurosci Methods, 94(1): 67-79.
-.. [#Gruen02a] Gruen S, Diesmann M, Aertsen A (2002) TITLE Neural Comput, 14(1):
-   43-80.
-.. [#Gruen02b] Gruen S, Diesmann M, Aertsen A (2002) TITLE Neural Comput, 14(1):
-   81-19.
+.. [#Gruen02a] Gruen S, Diesmann M, Aertsen A (2002) TITLE Neural Comput,
+   14(1): 43-80.
+.. [#Gruen02b] Gruen S, Diesmann M, Aertsen A (2002) TITLE Neural Comput,
+   14(1): 81-19.
 .. [#Gruen03] Gruen S, Riehle A, and Diesmann M (2003) Effect of cross-trial
    nonstationarity on joint-spike events. Biological Cybernetics 88(5):335-351
 .. [#Gruen09] Gruen S (2009) Data-driven significance estimation of precise
@@ -28,14 +53,19 @@ Detailed introduction and tutorial of method goes here.
 
 
 
-Author Contributions:
+Author Contributions
+--------------------
+
  - Vahid Rostami (VH)
  - Sonja Gruen (SG)
  - Markus Diesmann (MD)
 VH implemented the method, SG and MD provided input
 
 
-:copyright: Copyright 2015-2016 by the Elephant team, see AUTHORS.txt.
+Functions
+---------
+
+:copyright: Copyright 2015-2018 by the Elephant team, see AUTHORS.txt.
 :license: Modified BSD, see LICENSE.txt for details.
 """
 
