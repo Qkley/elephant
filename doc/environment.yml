@@ -1,8 +1,7 @@
 name: elephant
 dependencies:
 - python=3.6
-- docutils=0.11
-- numpy=1.16.2
+- docutils
 - numpydoc
 - six=1.12.0
 - sphinx_rtd_theme
