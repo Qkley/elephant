@@ -2,6 +2,7 @@ name: elephant
 dependencies:
 - python=3.6
 - ipython
+- jupyter
 - docutils
 - numpydoc
 - six=1.12.0
