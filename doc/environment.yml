@@ -1,4 +1,4 @@
-name: elephant
+name: elephant-doc
 dependencies:
 - python=3.6
 - ipython
