@@ -101,7 +101,7 @@ pygments_style = 'sphinx'
 
 # Only execute Jupyter notebooks that have no evaluated cells
 nbsphinx_execute = 'auto'
-nbsphinx_kernel_name = "python2"
+nbsphinx_kernel_name = "python3"
 
 # -- Options for HTML output ---------------------------------------------
 
