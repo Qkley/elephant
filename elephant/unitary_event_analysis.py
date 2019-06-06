@@ -77,7 +77,7 @@ import neo
 import quantities as pq
 
 
-def _hash_from_pattern(m, N, base=2):
+def hash_from_pattern(m, N, base=2):
     """
     Calculate for a spike pattern or a matrix of spike patterns
     (provide each pattern as a column) composed of N neurons a
@@ -123,7 +123,7 @@ def _hash_from_pattern(m, N, base=2):
                          [0, 0, 1, 0, 1, 0, 1, 1],
                          [0, 0, 0, 1, 0, 1, 1, 1]])
 
-    >>> _hash_from_pattern(m,N=3)
+    >>> hash_from_pattern(m,N=3)
         array([0, 4, 2, 1, 6, 5, 3, 7])
     """
     # check the consistency between shape of m and number neurons N
@@ -142,7 +142,7 @@ def _hash_from_pattern(m, N, base=2):
     return np.dot(v, m)
 
 
-def _inverse_hash_from_pattern(h, N, base=2):
+def inverse_hash_from_pattern(h, N, base=2):
     """
     Calculate the 0-1 spike patterns (matrix) from hash values
 
@@ -175,7 +175,7 @@ def _inverse_hash_from_pattern(h, N, base=2):
     >>> import numpy as np
     >>> h = np.array([3,7])
     >>> N = 4
-    >>> _inverse_hash_from_pattern(h,N)
+    >>> inverse_hash_from_pattern(h,N)
         array([[1, 1],
                [1, 1],
                [0, 1],
@@ -201,7 +201,7 @@ def _inverse_hash_from_pattern(h, N, base=2):
     return m
 
 
-def _n_emp_mat(mat, N, pattern_hash, base=2):
+def n_emp_mat(mat, N, pattern_hash, base=2):
     """
     Count the occurrences of spike coincidence patterns 
     in the given spike trains.
@@ -247,7 +247,7 @@ def _n_emp_mat(mat, N, pattern_hash, base=2):
     # check if the mat is zero-one matrix
     if not np.all((np.array(mat) == 0) + (np.array(mat) == 1)):
         raise ValueError("entries of mat should be either one or zero")
-    h = _hash_from_pattern(mat, N, base=base)
+    h = hash_from_pattern(mat, N, base=base)
     N_emp = np.zeros(len(pattern_hash))
     indices = []
     for idx_ph, ph in enumerate(pattern_hash):
@@ -257,7 +257,7 @@ def _n_emp_mat(mat, N, pattern_hash, base=2):
     return N_emp, indices
 
 
-def _n_emp_mat_sum_trial(mat, N, pattern_hash):
+def n_emp_mat_sum_trial(mat, N, pattern_hash):
     """
     Calculates empirical number of observed patterns summed across trials
 
@@ -307,7 +307,7 @@ def _n_emp_mat_sum_trial(mat, N, pattern_hash):
     >>> pattern_hash = np.array([4,6])
     >>> N = 3
     >>> n_emp_sum_trial, n_emp_sum_trial_idx =
-                             _n_emp_mat_sum_trial(mat, N,pattern_hash)
+                             n_emp_mat_sum_trial(mat, N,pattern_hash)
     >>> n_emp_sum_trial
         array([ 1.,  3.])
     >>> n_emp_sum_trial_idx
@@ -327,7 +327,7 @@ def _n_emp_mat_sum_trial(mat, N, pattern_hash):
         raise ValueError("entries of mat should be either one or zero")
 
     for mat_tr in mat:
-        N_emp_tmp, indices_tmp = _n_emp_mat(mat_tr, N, pattern_hash, base=2)
+        N_emp_tmp, indices_tmp = n_emp_mat(mat_tr, N, pattern_hash, base=2)
         idx_trials.append(indices_tmp)
         N_emp += N_emp_tmp
 
@@ -343,7 +343,7 @@ def _n_exp_mat_analytic(mat, N, pattern_hash):
     # build a two dimensional array with 1 column
     # and len(marg_prob) rows
     marg_prob = np.reshape(marg_prob, (len(marg_prob), 1))
-    m = _inverse_hash_from_pattern(pattern_hash, N)
+    m = inverse_hash_from_pattern(pattern_hash, N)
     nrep = np.shape(m)[1]
     # multipyling the marginal probability of neurons with regard to the
     # pattern
@@ -364,11 +364,11 @@ def _n_exp_mat_surrogate(mat, N, pattern_hash, n_surr=1):
         # shuffling all elements of zero-one matrix
         mat_surr = np.array(mat)
         [np.random.shuffle(i) for i in mat_surr]
-        N_exp_array[rz_idx] = _n_emp_mat(mat_surr, N, pattern_hash)[0][0]
+        N_exp_array[rz_idx] = n_emp_mat(mat_surr, N, pattern_hash)[0][0]
     return N_exp_array
 
 
-def _n_exp_mat(mat, N, pattern_hash, method='analytic', n_surr=1):
+def n_exp_mat(mat, N, pattern_hash, method='analytic', n_surr=1):
     """
     Calculates the expected joint probability for each spike pattern
 
@@ -414,12 +414,12 @@ def _n_exp_mat(mat, N, pattern_hash, method='analytic', n_surr=1):
                        [0, 0, 1, 0]])
     >>> pattern_hash = np.array([5,6])
     >>> N = 3
-    >>> n_exp_anal = _n_exp_mat(mat,N, pattern_hash, method = 'analytic')
+    >>> n_exp_anal = n_exp_mat(mat,N, pattern_hash, method = 'analytic')
     >>> n_exp_anal
         [ 0.5 1.5 ]
     >>>
     >>>
-    >>> n_exp_surr = _n_exp_mat(
+    >>> n_exp_surr = n_exp_mat(
                   mat, N,pattern_hash, method = 'surr', n_surr = 5000)
     >>> print n_exp_surr
     [[ 1.  1.]
@@ -441,7 +441,7 @@ def _n_exp_mat(mat, N, pattern_hash, method='analytic', n_surr=1):
         return _n_exp_mat_surrogate(mat, N, pattern_hash, n_surr)
 
 
-def _n_exp_mat_sum_trial(
+def n_exp_mat_sum_trial(
         mat, N, pattern_hash, method='analytic_TrialByTrial', **kwargs):
     """
     Calculates the expected joint probability
@@ -497,7 +497,7 @@ def _n_exp_mat_sum_trial(
 
     >>> pattern_hash = np.array([5,6])
     >>> N = 3
-    >>> n_exp_anal = _n_exp_mat_sum_trial(mat, N, pattern_hash)
+    >>> n_exp_anal = n_exp_mat_sum_trial(mat, N, pattern_hash)
     >>> print n_exp_anal
         array([ 1.56,  2.56])
     """
@@ -509,9 +509,9 @@ def _n_exp_mat_sum_trial(
     if method == 'analytic_TrialByTrial':
         n_exp = np.zeros(len(pattern_hash))
         for mat_tr in mat:
-            n_exp += _n_exp_mat(mat_tr, N, pattern_hash, method='analytic')
+            n_exp += n_exp_mat(mat_tr, N, pattern_hash, method='analytic')
     elif method == 'analytic_TrialAverage':
-        n_exp = _n_exp_mat(
+        n_exp = n_exp_mat(
             np.mean(mat, 0), N, pattern_hash, method='analytic') * np.shape(mat)[0]
     elif method == 'surrogate_TrialByTrial':
         if 'n_surr' in kwargs:
@@ -520,7 +520,7 @@ def _n_exp_mat_sum_trial(
             n_surr = 1.
         n_exp = np.zeros(n_surr)
         for mat_tr in mat:
-            n_exp += _n_exp_mat(mat_tr, N, pattern_hash,
+            n_exp += n_exp_mat(mat_tr, N, pattern_hash,
                                method='surr', n_surr=n_surr)
     else:
         raise ValueError(
@@ -528,7 +528,7 @@ def _n_exp_mat_sum_trial(
     return n_exp
 
 
-def _gen_pval_anal(
+def gen_pval_anal(
         mat, N, pattern_hash, method='analytic_TrialByTrial', **kwargs):
     """
     computes the expected coincidences and a function to calculate
@@ -589,12 +589,12 @@ def _gen_pval_anal(
 
     >>> pattern_hash = np.array([5,6])
     >>> N = 3
-    >>> pval_anal,n_exp = _gen_pval_anal(mat, N,pattern_hash)
+    >>> pval_anal,n_exp = gen_pval_anal(mat, N,pattern_hash)
     >>> n_exp
         array([ 1.56,  2.56])
     """
     if method == 'analytic_TrialByTrial' or method == 'analytic_TrialAverage':
-        n_exp = _n_exp_mat_sum_trial(mat, N, pattern_hash, method=method)
+        n_exp = n_exp_mat_sum_trial(mat, N, pattern_hash, method=method)
 
         def pval(n_emp):
             p = 1. - scipy.special.gammaincc(n_emp, n_exp)
@@ -604,7 +604,7 @@ def _gen_pval_anal(
             n_surr = kwargs['n_surr']
         else:
             n_surr = 1.
-        n_exp = _n_exp_mat_sum_trial(
+        n_exp = n_exp_mat_sum_trial(
             mat, N, pattern_hash, method=method, n_surr=n_surr)
 
         def pval(n_emp):
@@ -618,7 +618,7 @@ def _gen_pval_anal(
     return pval, n_exp
 
 
-def _jointJ(p_val):
+def jointJ(p_val):
     """Surprise measurement
 
     logarithmic transformation of joint-p-value into surprise measure
@@ -638,7 +638,7 @@ def _jointJ(p_val):
     Examples:
     ---------
     >>> p_val = np.array([0.31271072,  0.01175031])
-    >>> _jointJ(p_val)
+    >>> jointJ(p_val)
         array([0.3419968 ,  1.92481736])
     """
     p_arr = np.array(p_val)
@@ -696,19 +696,19 @@ def _UE(mat, N, pattern_hash, method='analytic_TrialByTrial', **kwargs):
     in the given mat, n_exp and average rate of neurons)
     """
     rate_avg = _rate_mat_avg_trial(mat)
-    n_emp, indices = _n_emp_mat_sum_trial(mat, N, pattern_hash)
+    n_emp, indices = n_emp_mat_sum_trial(mat, N, pattern_hash)
     if method == 'surrogate_TrialByTrial':
         if 'n_surr' in kwargs:
             n_surr = kwargs['n_surr']
         else:
             n_surr = 1
-        dist_exp, n_exp = _gen_pval_anal(
+        dist_exp, n_exp = gen_pval_anal(
             mat, N, pattern_hash, method, n_surr=n_surr)
         n_exp = np.mean(n_exp)
     elif method == 'analytic_TrialByTrial' or method == 'analytic_TrialAverage':
-        dist_exp, n_exp = _gen_pval_anal(mat, N, pattern_hash, method)
+        dist_exp, n_exp = gen_pval_anal(mat, N, pattern_hash, method)
     pval = dist_exp(n_emp)
-    Js = _jointJ(pval)
+    Js = jointJ(pval)
     return Js, rate_avg, n_exp, n_emp, indices
 
 
@@ -719,7 +719,7 @@ def unitary_event_analysis(
     """
     Performs the Unitary Event Analysis in a sliding window fashion.
 
-    #TODO: Describe the method complementary to the module description.
+    #TODO: Describe the method
 
     Parameters:
     ----------
@@ -737,7 +737,7 @@ def unitary_event_analysis(
     pattern_hash: list of integers
            List of patterns to include in the analysis. Patterns are identified
            by their hash values as returned by the function
-           `_hash_from_pattern` (see also function `_inverse_hash_from_pattern`).
+           `hash_from_pattern` (see also function `inverse_hash_from_pattern`).
     method: string
         Method to calculate the Unitary Events.
 
@@ -792,8 +792,8 @@ def unitary_event_analysis(
              Average firing rate of each neuron.
     See also:
     ---------
-    _hash_from_pattern
-    _inverse_hash_from_pattern
+    hash_from_pattern
+    inverse_hash_from_pattern
     """
     if not isinstance(data[0][0], neo.SpikeTrain):
         raise ValueError(
