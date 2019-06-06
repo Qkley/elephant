@@ -828,8 +828,9 @@ def unitary_event_analysis(
 
     mat_tr_unit_spt = np.zeros((len(data), N, n_bins))
     for tr, sts in enumerate(data):
-        bs = BinnedSpikeTrain(
-            sts, t_start=t_start, t_stop=t_stop, binsize=bin_size)
+        sts = list(sts)
+        bs = conv.BinnedSpikeTrain(
+            sts, t_start=t_start, t_stop=t_stop, binsize=binsize)
         if binary is True:
             mat = bs.to_bool_array()
         else:
