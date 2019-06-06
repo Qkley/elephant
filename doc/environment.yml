@@ -4,6 +4,7 @@ dependencies:
 - ipython
 - jupyter
 - docutils
+- matplotlib
 - numpydoc
 - six=1.12.0
 - sphinx_rtd_theme
@@ -12,7 +13,6 @@ dependencies:
   - quantities==0.12.3
   - sphinx_bootstrap_theme
   - nbsphinx
-  - matplotlib
   - tables
   - h5py
 

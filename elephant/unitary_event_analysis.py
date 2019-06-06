@@ -22,17 +22,14 @@ neurons. Key elements of the method are the proper formulation of the null
 hypothesis and the derivation of the corresponding count distribution of
 synchronous spike events used in the significance test. The analysis is
 performed in a sliding window manner and yields a time-resolved measure of
-significant spike synchrony. For further reading, see [#Gruen02a_],
-[#Gruen02b_], [#Gruen03_], [#Gruen09_].
+significant spike synchrony. For further reading, see [#Gruen02a]_,
+[#Gruen02b]_, [#Gruen03]_, [#Gruen09]_.
 
 
 Examples
 --------
 
-:ref:`Tutorial on using Unitary Events <ipynb/unitary_events.ipynb>`
-
-[Tutorial on using Unitary Events](ipynb/unitary_events.ipynb)
-
+:doc:`View tutorial <../ipynb/unitary_events>`
 
 Run tutorial interactively:
 
