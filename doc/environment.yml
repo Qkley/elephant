@@ -8,3 +8,6 @@ dependencies:
 - pip:
   - neo==0.7.1
   - quantities==0.12.3
+  - sphinx_bootstrap_theme
+  - nbsphinx
+
