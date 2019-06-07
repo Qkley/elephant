@@ -26,7 +26,7 @@ significant spike synchrony. For further reading, see [#Gruen02a]_,
 [#Gruen02b]_, [#Gruen03]_, [#Gruen09]_.
 
 
-Examples
+Tutorial
 --------
 
 :doc:`View tutorial <../ipynb/unitary_events>`
@@ -56,16 +56,16 @@ References
 Author Contributions
 --------------------
 
- - Vahid Rostami (VH)
- - Sonja Gruen (SG)
- - Markus Diesmann (MD)
-VH implemented the method, SG and MD provided input
+- Vahid Rostami (VH)
+- Sonja Gruen (SG)
+- Markus Diesmann (MD)
+VH implemented the method, SG and MD provided guidance.
 
 
 Functions
 ---------
 
-:copyright: Copyright 2015-2018 by the Elephant team, see AUTHORS.txt.
+:copyright: Copyright 2015-2019 by the Elephant team, see AUTHORS.txt.
 :license: Modified BSD, see LICENSE.txt for details.
 """
 
@@ -370,7 +370,7 @@ def _n_exp_mat_surrogate(mat, N, pattern_hash, n_surr=1):
 
 def n_exp_mat(mat, N, pattern_hash, method='analytic', n_surr=1):
     """
-    Calculates the expected joint probability for each spike pattern
+    Calculates the expected joint probability for each spike pattern.
 
     Parameters:
     -----------
@@ -444,8 +444,8 @@ def n_exp_mat(mat, N, pattern_hash, method='analytic', n_surr=1):
 def n_exp_mat_sum_trial(
         mat, N, pattern_hash, method='analytic_TrialByTrial', **kwargs):
     """
-    Calculates the expected joint probability
-    for each spike pattern sum over trials
+    Calculates the expected joint probability for each spike pattern sum over
+    trials.
 
     Parameters:
     -----------
@@ -531,10 +531,10 @@ def n_exp_mat_sum_trial(
 def gen_pval_anal(
         mat, N, pattern_hash, method='analytic_TrialByTrial', **kwargs):
     """
-    computes the expected coincidences and a function to calculate
+    Computes the expected coincidences and a function to calculate
     p-value for given empirical coincidences
 
-    this function generate a poisson distribution with the expected
+    This function generate a poisson distribution with the expected
     value calculated by mat. it returns a function which gets
     the empirical coincidences, `n_emp`,  and calculates a p-value
     as the area under the poisson distribution from `n_emp` to infinity
@@ -717,9 +717,8 @@ def unitary_event_analysis(
         method='analytic_TrialByTrial', t_start=None,
         t_stop=None, binary=True, **kwargs):
     """
-    Performs the Unitary Event Analysis in a sliding window fashion.
-
-    #TODO: Describe the method
+    Performs the Unitary Event (UE) Analysis on a set of n neurons recroded in
+    t trials in a sliding window fashion.
 
     Parameters:
     ----------
@@ -741,20 +740,19 @@ def unitary_event_analysis(
     method: string
         Method to calculate the Unitary Events.
 
-        * 'analytic_TrialByTrial': calculate the expectancy (analytically) on
+        - 'analytic_TrialByTrial': calculate the expectancy (analytically) on
           each trial, then sum over all trials.
-        * 'analytic_TrialAverage': calculate the expectancy by averaging over
+        - 'analytic_TrialAverage': calculate the expectancy by averaging over
           trials (cf. Gruen et al. 2003).
-        * 'surrogate_TrialByTrial': calculate the distribution of expected
+        - 'surrogate_TrialByTrial': calculate the distribution of expected
           coincidences by spike time randomization in each trial and sum over
           trials.
 
         Default: 'analytic_trialByTrial'
     t_start: None or Quantity scalar (unit time)
-    	The start time of the analysis. #TODO position of window?
-        If **None**, retrieved from the `t_start` attribute of the
-        `SpikeTrain` object.
-        
+        The start time of the analysis. If `None`, retrieved from the
+        `t_start` attribute of the `SpikeTrain` object.
+
         Default: None.
 
     t_stop: None or Quantity scalar, optional
@@ -770,7 +768,6 @@ def unitary_event_analysis(
             Number of surrogates to be used
 
             Default: 100
-
 
     Returns:
     --------
@@ -790,6 +787,7 @@ def unitary_event_analysis(
              Expected number of occurrences of the pattern.
         rate_avg: list of floats
              Average firing rate of each neuron.
+    
     See also:
     ---------
     hash_from_pattern
