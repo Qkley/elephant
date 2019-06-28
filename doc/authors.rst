@@ -49,3 +49,5 @@ contribution, and may not be the current affiliation of a contributor.
 11. Case Western Reserve University (CWRU), Cleveland, OH, USA
 
 If we've somehow missed you off the list we're very sorry - please let us know.
+
+This open source software code was developed in part or in whole in the Human Brain Project, funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 720270 (Human Brain Project SGA1) and 785907 (Human Brain Project SGA2).
