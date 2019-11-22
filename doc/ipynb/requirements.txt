@@ -5,6 +5,7 @@ quantities>=0.10.1
 scipy>=0.14.0
 six
 matplotlib
+h5py
 # optional
 #pandas>=0.14.1
 # for building documentation
