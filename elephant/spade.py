@@ -300,7 +300,7 @@ def spade(data, binsize, winlen, min_spikes=2, min_occ=2, max_spikes=None,
                                   max_occ=max_occ, min_neu=min_neu,
                                   spectrum=spectrum)
         time_pvalue_spectrum = time.time() - time_pvalue_spectrum
-        print("Time for pvalue spectrum computation: {}".format(
+        print("Total time for pvalue spectrum computation: {}".format(
             time_pvalue_spectrum))
         # Storing pvalue spectrum
         output['pvalue_spectrum'] = pv_spec
@@ -344,6 +344,12 @@ def spade(data, binsize, winlen, min_spikes=2, min_occ=2, max_spikes=None,
                                                report='a')
         time_mining = time.time() - time_mining
         print("Time for data mining: {}".format(time_mining))
+    print("Time for FIM Input Preprocessing: {}".format(
+        concepts_mining.time_pre / concepts_mining.num_runs))
+    print("Time for FIM: {}".format(
+        concepts_mining.time_fim / concepts_mining.num_runs))
+    print("Time for FIM Output Postprocessing: {}".format(
+        concepts_mining.time_post / concepts_mining.num_runs))
     if rank == 0:
         # Decide whether filter concepts with psf
         if n_surr > 0:
@@ -352,20 +358,27 @@ def spade(data, binsize, winlen, min_spikes=2, min_occ=2, max_spikes=None,
             else:
                 # Computing non-significant entries of the spectrum applying
                 # the statistical correction
+                time_significance = time.time()
                 ns_sgnt = test_signature_significance(pv_spec, alpha,
                                                       corr=stat_corr,
                                                       report='non_significant',
                                                       spectrum=spectrum)
+                time_significance = time.time() - time_significance
+                print("Time for multiple testing: {}".format(time_significance))
             # Storing non-significant entries of the pvalue spectrum
             output['non_sgnf_sgnt'] = ns_sgnt
             # Filter concepts with pvalue spectrum (psf)
             if len(ns_sgnt) > 0:
+                time_psf = time.time()
                 concepts = list(filter(
                     lambda c: _pattern_spectrum_filter(
                         c, ns_sgnt, spectrum, winlen), concepts))
+                time_psf = time.time() - time_psf
+                print("Time for psf: {}".format(time_psf))
                 # Decide whether to filter concepts using psr
                 if psr_param is not None:
                     # Filter using conditional tests (psr)
+                    time_psr = time.time()
                     concepts = pattern_set_reduction(concepts, ns_sgnt,
                                                      winlen=winlen,
                                                      h=psr_param[0],
@@ -373,6 +386,8 @@ def spade(data, binsize, winlen, min_spikes=2, min_occ=2, max_spikes=None,
                                                      l=psr_param[2],
                                                      min_spikes=min_spikes,
                                                      min_occ=min_occ)
+                    time_psr = time.time() - time_psr
+                    print("Time for psf: {}".format(time_psr))
 
         # Storing patterns
         if output_format == 'patterns':
@@ -380,10 +395,14 @@ def spade(data, binsize, winlen, min_spikes=2, min_occ=2, max_spikes=None,
             if n_surr == 0:
                 pv_spec = None
             # Transforming concepts to dictionary containing pattern's infos
+            time_to_patterns = time.time()
             output['patterns'] = concept_output_to_patterns(concepts,
                                                             winlen, binsize,
                                                             pv_spec, spectrum,
                                                             data[0].t_start)
+            time_to_patterns = time.time() - time_to_patterns
+            print("Time for converting concepts to patterns: {}".format(
+                time_to_patterns))
         elif output_format == 'concepts':
             output['patterns'] = concepts
         else:
@@ -489,6 +508,8 @@ def concepts_mining(data, binsize, winlen, min_spikes=2, min_occ=2,
             "report has to assume of the following values:" +
             "  'a', '#' and '3d#,' got {} instead".format(report))
     # Binning the data and clipping (binary matrix)
+    concepts_mining.num_runs += 1
+    time_pre = time.time()
     binary_matrix = conv.BinnedSpikeTrain(
         data, binsize).to_sparse_bool_array().tocoo()
     # Computing the context and the binary matrix encoding the relation between
@@ -504,6 +525,7 @@ def concepts_mining(data, binsize, winlen, min_spikes=2, min_occ=2,
     # windows
     if max_occ is None:
         max_occ = int(np.sum(np.sum(rel_matrix, axis=1) > 0))
+    concepts_mining.time_pre += time.time() - time_pre
     # Check if fim.so available and use it
     if HAVE_FIM:
         # Return the output
@@ -535,6 +557,13 @@ def concepts_mining(data, binsize, winlen, min_spikes=2, min_occ=2,
         min_neu=min_neu,
         report=report)
     return mining_results, rel_matrix
+
+
+concepts_mining.time_pre = 0
+concepts_mining.time_fim = 0
+concepts_mining.time_post = 0
+concepts_mining.num_runs = 0
+
 
 
 def _build_context(binary_matrix, winlen, only_windows_with_first_spike=True):
@@ -729,6 +758,7 @@ def _fpgrowth(transactions, min_c=2, min_z=2, max_z=None,
             spec_matrix = np.zeros((max_z + 1, max_c + 1, winlen))
         spectrum = []
         # Mining the data with fpgrowth algorithm
+        time_fim = time.time()
         if np.unique(transactions, return_counts=True)[1][0] == len(
                 transactions):
             fpgrowth_output = [(tuple(transactions[0]), len(transactions))]
@@ -741,6 +771,8 @@ def _fpgrowth(transactions, min_c=2, min_z=2, max_z=None,
                 zmax=max_z,
                 report='a',
                 algo='s')
+        concepts_mining.time_fim += time.time() - time_fim
+        time_post = time.time()
         # Applying min/max conditions and computing extent (window positions)
         fpgrowth_output = list(filter(
             lambda c: _fpgrowth_filter(
@@ -767,6 +799,7 @@ def _fpgrowth(transactions, min_c=2, min_z=2, max_z=None,
                     np.array(intent) % winlen)] += 1
         del fpgrowth_output
         if report == 'a':
+            concepts_mining.time_post += time.time() - time_post
             return concepts
         else:
             if report == '#':
@@ -778,6 +811,7 @@ def _fpgrowth(transactions, min_c=2, min_z=2, max_z=None,
                     spectrum.append(
                         (z + 1, c + 1, l, int(spec_matrix[z, c, l])))
             del spec_matrix
+            concepts_mining.time_post += time.time() - time_post
             return spectrum
     else:
         raise AttributeError('min_neu must be an integer >=1')
@@ -1104,14 +1138,24 @@ def pvalue_spectrum(data, binsize, winlen, dither, n_surr, min_spikes=2,
     surr_sgnts = []
 
     add_remainder = rank < len_remainder
+
+    time_surr_generation = 0
+    time_surr_mining = 0
+    time_surr_spectrum = 0
+
     for i in range(len_partition + add_remainder):
+        current_time_surr_generation = time.time()
         surrs = [surr.dither_spikes(
             xx, dither=dither, n=1)[0] for xx in data]
+        time_surr_generation += time.time() - current_time_surr_generation
         # Find all pattern signatures in the current surrogate data set
+        current_time_surr_mining = time.time()
         surr_sgnt = concepts_mining(
             surrs, binsize, winlen, min_spikes=min_spikes,
             max_spikes=max_spikes, min_occ=min_occ, max_occ=max_occ,
             min_neu=min_neu, report=spectrum)[0]
+        time_surr_mining += time.time() - current_time_surr_mining
+        current_time_surr_spectrum = time.time()
         filled_sgnt = []
         # List all signatures (z,c) <= (z*, c*), for each (z*,c*) in the
         # current surrogate, and add it to the list of all signatures
@@ -1129,16 +1173,31 @@ def pvalue_spectrum(data, binsize, winlen, dither, n_surr, min_spikes=2,
                     for k in range(min_occ, sgnt[1] + 1):
                         filled_sgnt.append((j, k, sgnt[2]))
         surr_sgnts.extend(list(set(filled_sgnt)))
+        time_surr_spectrum += time.time() - current_time_surr_spectrum
+    print("Time for surrogate generation on rank {}: {}".format(
+        rank,
+        time_surr_generation / (len_partition + add_remainder)))
+    print("Time for surrogate mining on rank {}: {}".format(
+        rank,
+        time_surr_mining / (len_partition + add_remainder)))
+    print("Time for surrogate spectrum on rank {}: {}".format(
+        rank,
+        time_surr_spectrum / (len_partition + add_remainder)))
     # Collecting results on the first PCU
     if rank != 0:  # pragma: no cover
         comm.send(surr_sgnts, dest=0)
         del surr_sgnts
         return []
     if rank == 0:
+        time_mpi = time.time()
         for i in range(1, size):
             recv_list = comm.recv(source=i)
             surr_sgnts.extend(recv_list)
+        time_mpi = time.time() - time_mpi
+        print("Time for MPI gather: {}".format(
+            time_mpi))
 
+        time_pvalues = time.time()
         # Compute the p-value spectrum, and return it
         pv_spec = []
         for sgnt in set(surr_sgnts):
@@ -1146,6 +1205,9 @@ def pvalue_spectrum(data, binsize, winlen, dither, n_surr, min_spikes=2,
             sgnt.append((sum(np.all(np.array(surr_sgnts) == sgnt, axis=1)
                              ) / float(n_surr)))
             pv_spec.append(sgnt)
+        time_pvalues = time.time() - time_pvalues
+        print("Time for last loop in pvalue_spectrum: {}".format(
+            time_pvalues))
         return pv_spec
 
 
