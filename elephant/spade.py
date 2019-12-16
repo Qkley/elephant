@@ -387,7 +387,7 @@ def spade(data, binsize, winlen, min_spikes=2, min_occ=2, max_spikes=None,
                                                      min_spikes=min_spikes,
                                                      min_occ=min_occ)
                     time_psr = time.time() - time_psr
-                    print("Time for psf: {}".format(time_psr))
+                    print("Time for psr: {}".format(time_psr))
 
         # Storing patterns
         if output_format == 'patterns':
