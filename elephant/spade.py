@@ -72,15 +72,16 @@ from collections import defaultdict
 
 warnings.simplefilter('once', UserWarning)
 
-
 try:
     from mpi4py import MPI  # for parallelized routines
+
     HAVE_MPI = True
 except ImportError:  # pragma: no cover
     HAVE_MPI = False
 
 try:
     from elephant.spade_src import fim
+
     HAVE_FIM = True
 except ImportError:  # pragma: no cover
     HAVE_FIM = False
@@ -285,7 +286,7 @@ def spade(data, binsize, winlen, min_spikes=2, min_occ=2, max_spikes=None,
     Frontiers in Computational Neuroscience, 11.
     """
     if HAVE_MPI:  # pragma: no cover
-        comm = MPI.COMM_WORLD   # create MPI communicator
+        comm = MPI.COMM_WORLD  # create MPI communicator
         rank = comm.Get_rank()  # get rank of current MPI task
     else:
         rank = 0
@@ -364,7 +365,8 @@ def spade(data, binsize, winlen, min_spikes=2, min_occ=2, max_spikes=None,
                                                       report='non_significant',
                                                       spectrum=spectrum)
                 time_significance = time.time() - time_significance
-                print("Time for multiple testing: {}".format(time_significance))
+                print(
+                    "Time for multiple testing: {}".format(time_significance))
             # Storing non-significant entries of the pvalue spectrum
             output['non_sgnf_sgnt'] = ns_sgnt
             # Filter concepts with pvalue spectrum (psf)
@@ -563,7 +565,6 @@ concepts_mining.time_pre = 0
 concepts_mining.time_fim = 0
 concepts_mining.time_post = 0
 concepts_mining.num_runs = 0
-
 
 
 def _build_context(binary_matrix, winlen, only_windows_with_first_spike=True):
@@ -826,7 +827,7 @@ def _fpgrowth_filter(concept, winlen, max_c, min_neu):
     keep_concepts = len(
         np.unique(np.array(
             concept[0]) // winlen)) >= min_neu and concept[1] <= max_c and min(
-                np.array(concept[0]) % winlen) == 0
+        np.array(concept[0]) % winlen) == 0
     return keep_concepts
 
 
@@ -1035,8 +1036,8 @@ def _fca_filter(concept, winlen, min_c, min_z, max_c, max_z, min_neu):
     extent = tuple(concept.extent)
     keep_concepts = len(intent) >= min_z and len(extent) >= min_c and len(
         intent) <= max_z and len(extent) <= max_c and len(
-            np.unique(np.array(intent) // winlen)) >= min_neu and min(
-                np.array(intent) % winlen) == 0
+        np.unique(np.array(intent) // winlen)) >= min_neu and min(
+        np.array(intent) % winlen) == 0
     return keep_concepts
 
 
@@ -1120,7 +1121,7 @@ def pvalue_spectrum(data, binsize, winlen, dither, n_surr, min_spikes=2,
     """
     # Initializing variables for parallel computing
     if HAVE_MPI:  # pragma: no cover
-        comm = MPI.COMM_WORLD   # create MPI communicator
+        comm = MPI.COMM_WORLD  # create MPI communicator
         rank = comm.Get_rank()  # get rank of current MPI task
         size = comm.Get_size()  # get tot number of MPI tasks
     else:
@@ -1211,6 +1212,271 @@ def pvalue_spectrum(data, binsize, winlen, dither, n_surr, min_spikes=2,
         return pv_spec
 
 
+def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
+                          min_occ=2, max_spikes=None, max_occ=None, min_neu=1,
+                          spectrum='#'):
+    """
+    Compute the p-value spectrum of pattern signatures extracted from
+    surrogates of parallel spike trains, under the null hypothesis of
+    independent spiking.
+
+    * n_surr surrogates are obtained from each spike train by spike dithering
+    * pattern candidates (concepts) are collected from each surrogate data
+    * the signatures (number of spikes, number of occurrences) of all patterns
+      are computed, and their  occurrence probability estimated by their
+      occurrence frequency (p-value spectrum)
+
+
+    Parameters
+    ----------
+    data: list of neo.SpikeTrains
+        List containing the parallel spike trains to analyze
+    binsize: Quantity
+        The time precision used to discretize the data (binning).
+    winlen: int (positive)
+        The size (number of bins) of the sliding window used for the analysis.
+        The maximal length of a pattern (delay between first and last spike) is
+        then given by winlen*binsize
+    dither: Quantity
+        Amount of spike time dithering for creating the surrogates for
+        filtering the pattern spectrum. A spike at time t is placed randomly
+        within ]t-dither, t+dither[ (see also
+        elephant.spike_train_surrogates.dither_spikes).
+        Default: 15*pq.s
+    n_surr: int
+        Number of surrogates to generate to compute the p-value spectrum.
+        This number should be large (n_surr>=1000 is recommended for 100
+        spike trains in *sts*). If n_surr is 0, then the p-value spectrum is
+        not computed.
+        Default: 0
+    min_spikes: int (positive)
+        Minimum number of spikes of a sequence to be considered a pattern.
+        Default: 2
+    min_occ: int (positive)
+       Minimum number of occurrences of a sequence to be considered as a
+       pattern.
+       Default: 2
+    max_spikes: int (positive)
+        Maximum number of spikes of a sequence to be considered a pattern. If
+        None no maximal number of spikes is considered.
+        Default: None
+    max_occ: int (positive)
+        Maximum number of occurrences of a sequence to be considered as a
+        pattern. If None, no maximal number of occurrences is considered.
+        Default: None
+    min_neu: int (positive)
+        Minimum number of neurons in a sequence to considered a pattern.
+        Default: 1
+    spectrum: str
+        Defines the signature of the patterns, it can assume values:
+        '#': pattern spectrum using the as signature the pair:
+            (number of spikes, number of occurrence)
+        '3d#': pattern spectrum using the as signature the triplets:
+            (number of spikes, number of occurrence, difference between last
+            and first spike of the pattern)
+        Default: '#'
+
+    Returns
+    ------
+    pv_spec: list
+        if spectrum == '#':
+            A list of triplets (z,c,p), where (z,c) is a pattern signature
+            and p is the corresponding p-value (fraction of surrogates
+            containing signatures (z*,c*)>=(z,c)).
+        if spectrum == '3d#':
+            A list of triplets (z,c,l,p), where (z,c,l) is a pattern signature
+            and p is the corresponding p-value (fraction of surrogates
+            containing signatures (z*,c*,l*)>=(z,c,l)).
+        Signatures whose empirical p-value is 0 are not listed.
+
+    """
+    # Initializing variables for parallel computing
+    if HAVE_MPI:  # pragma: no cover
+        comm = MPI.COMM_WORLD  # create MPI communicator
+        rank = comm.Get_rank()  # get rank of current MPI task
+        size = comm.Get_size()  # get tot number of MPI tasks
+    else:
+        rank = 0
+        size = 1
+    # Check on number of surrogates
+    if n_surr <= 0:
+        raise AttributeError('n_surr has to be >0')
+    len_partition = n_surr // size  # length of each MPI task
+    len_remainder = n_surr % size
+
+    # For each surrogate collect the signatures (z,c) such that (z*,c*)>=(z,c)
+    # exists in that surrogate. Group such signatures (with repetition)
+    # list of all signatures found in surrogates, initialized to []
+    surr_sgnts = []
+
+    add_remainder = rank < len_remainder
+
+    time_surr_generation = 0
+    time_surr_mining = 0
+    time_surr_spectrum = 0
+
+    max_occs_shape = _get_max_occs_shape(len_partition + add_remainder,
+                                         min_spikes, max_spikes,
+                                         winlen, spectrum)
+    max_occs = np.zeros(
+        shape=max_occs_shape,
+        dtype=int)
+
+    for i in range(len_partition + add_remainder):
+        current_time_surr_generation = time.time()
+        surrs = [surr.dither_spikes(
+            xx, dither=dither, n=1)[0] for xx in data]
+        time_surr_generation += time.time() - current_time_surr_generation
+        # Find all pattern signatures in the current surrogate data set
+        current_time_surr_mining = time.time()
+        surr_concepts = concepts_mining(
+            surrs, binsize, winlen, min_spikes=min_spikes,
+            max_spikes=max_spikes, min_occ=min_occ, max_occ=max_occ,
+            min_neu=min_neu, report=spectrum)[0]
+        surr_concepts = np.array(surr_concepts)[:, :-1]
+        time_surr_mining += time.time() - current_time_surr_mining
+        current_time_surr_spectrum = time.time()
+
+        if max_spikes is None:
+            raise ValueError('still not implemented for max_spikes is None')
+        max_occs[i] = _get_max_occ(surr_concepts, min_spikes, max_spikes,
+                                   winlen, spectrum)
+
+        time_surr_spectrum += time.time() - current_time_surr_spectrum
+    print("Time for surrogate generation on rank {}: {}".format(
+        rank,
+        time_surr_generation / (len_partition + add_remainder)))
+    print("Time for surrogate mining on rank {}: {}".format(
+        rank,
+        time_surr_mining / (len_partition + add_remainder)))
+    print("Time for surrogate spectrum on rank {}: {}".format(
+        rank,
+        time_surr_spectrum / (len_partition + add_remainder)))
+    # Collecting results on the first PCU
+
+    if size != 1:
+        time_mpi = time.time()
+
+        max_occs_list = comm.gather(max_occs, root=0)
+
+        if rank != 0:  # pragma: no cover
+            return []
+
+        max_occs_shape = _get_max_occs_shape(n_surr, min_spikes, max_spikes,
+                                             winlen, spectrum)
+        max_occs = np.empty(shape=max_occs_shape,
+                            dtype=int)
+
+        counter_elements = 0
+        for rank_id, entry in enumerate(max_occs_list):
+            max_occs[counter_elements:counter_elements+entry.shape[0]] = entry
+            counter_elements += entry.shape[0]
+
+        time_mpi = time.time() - time_mpi
+        print("Time for MPI gather: {}".format(
+            time_mpi))
+
+    time_pvalues = time.time()
+    # Compute the p-value spectrum, and return it
+
+    pv_spec = _get_pvalue_spec(max_occs, min_spikes, max_spikes,
+                               n_surr, winlen, spectrum)
+
+    time_pvalues = time.time() - time_pvalues
+    print("Time for last loop in pvalue_spectrum: {}".format(
+        time_pvalues))
+    return pv_spec
+
+
+def _get_pvalue_spec(max_occs, min_spikes, max_spikes,
+                     n_surr, winlen, spectrum):
+    if spectrum == '#':
+        return _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes,
+                                    n_surr)
+    return _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes,
+                                n_surr, winlen)
+
+
+def _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes,
+                        n_surr):
+    pv_spec = []
+    for size_id, size in enumerate(range(max_spikes, min_spikes - 1, -1)):
+        max_occs_size = max_occs[:, size_id]
+        counts, occs = np.histogram(
+            max_occs_size,
+            bins=np.arange(np.min(max_occs_size),
+                           np.max(max_occs_size) + 2))
+        occs = occs[:-1]
+        prob_mass_func = counts / float(n_surr)
+        pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
+
+        for occ_id, occ in occs:
+            pv_spec.append([size, occ, pvalues[occ_id]])
+    return pv_spec
+
+
+def _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes,
+                         n_surr, winlen):
+    pv_spec = []
+    for size_id, size in enumerate(range(max_spikes, min_spikes - 1, -1)):
+        for dur in range(winlen):
+            max_occs_size_dur = max_occs[:, size_id, dur]
+            counts, occs = np.histogram(
+                max_occs_size_dur,
+                bins=np.arange(np.min(max_occs_size_dur),
+                               np.max(max_occs_size_dur) + 2))
+            occs = occs[:-1]
+            prob_mass_func = counts / float(n_surr)
+            pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
+
+            for occ_id, occ in occs:
+                pv_spec.append([size, occ, dur, pvalues[occ_id]])
+    return pv_spec
+
+
+def _get_max_occs_shape(n, min_spikes, max_spikes, winlen, spectrum):
+    if spectrum == '#':
+        return n, max_spikes - min_spikes + 1
+    return n, max_spikes - min_spikes + 1, winlen
+
+
+def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen, spectrum):
+    if spectrum == '#':
+        return _get_max_occ_2d(surr_concepts, min_spikes, max_spikes)
+    return _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen)
+
+
+def _get_max_occ_2d(surr_concepts, min_spikes, max_spikes):
+    max_occ = np.zeros(shape=(max_spikes - min_spikes + 1),
+                       dtype=int)
+    for size_id, size in enumerate(range(max_spikes, min_spikes - 1, -1)):
+        concepts_for_size = surr_concepts[
+                                surr_concepts[:, 0] == size][:, 1]
+        max_occ[size_id] = np.max(concepts_for_size,
+                                  initial=0).astype(int)
+        if size != max_spikes:
+            max_occ[size_id] = np.max(
+                max_occ[size_id - 1:size_id + 1]).astype(int)
+
+    return max_occ
+
+
+def _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen):
+    max_occ = np.zeros(shape=(max_spikes - min_spikes + 1,
+                              winlen),
+                       dtype=int)
+    for size_id, size in enumerate(range(max_spikes, min_spikes - 1, -1)):
+        concepts_for_size = surr_concepts[
+                                surr_concepts[:, 0] == size][:, 1:]
+        for dur in range(winlen):
+            occs = concepts_for_size[concepts_for_size[:, 1] == dur][:, 0]
+            max_occ[size_id, dur] = np.max(occs, initial=0)
+        if size != max_spikes:
+            max_occ[size_id] = np.max(max_occ[size_id - 1:size_id + 1], axis=1)
+
+    return max_occ
+
+
 def _stability_filter(c, stab_thr):
     """Criteria by which to filter concepts from the lattice"""
     # stabilities larger then min_st
@@ -1252,7 +1518,7 @@ def _fdr(pvalues, alpha):
     for i, pv in enumerate(pvs_sorted):  # For each PV, from the largest on
         k = m - i
         if pv <= alpha * (k * 1. / m):  # continue if PV > fdr-threshold
-            break                          # otherwise stop
+            break  # otherwise stop
     # this applies, when loop is not stopped due to significant pvalue
     else:
         k = 0
@@ -1353,7 +1619,7 @@ def test_signature_significance(pvalue_spectrum, alpha, corr='',
     else:
         raise AttributeError(
             "Parameter corr must be either ''('no'), 'b'('bonf'), 'f'('fdr')" +
-            " or 'hb'('holm_bonf'), but not '"+str(corr)+"'.")
+            " or 'hb'('holm_bonf'), but not '" + str(corr) + "'.")
     # Return the specified results:
     if spectrum == '#':
         if report == 'spectrum':
@@ -1471,7 +1737,7 @@ def approximate_stability(concepts, rel_matrix, n_subsets, delta=0, epsilon=0):
 
     """
     if HAVE_MPI:  # pragma: no cover
-        comm = MPI.COMM_WORLD   # create MPI communicator
+        comm = MPI.COMM_WORLD  # create MPI communicator
         rank = comm.Get_rank()  # get rank of current MPI task
         size = comm.Get_size()  # get tot number of MPI tasks
     else:
@@ -1487,15 +1753,16 @@ def approximate_stability(concepts, rel_matrix, n_subsets, delta=0, epsilon=0):
         rank_idx = list(
             np.arange(
                 0, len(concepts) - len(concepts) % size + 1,
-                len(concepts) // size)) + [len(concepts)]
+                   len(concepts) // size)) + [len(concepts)]
     # Calculate optimal n
     if delta + epsilon > 0 and n_subsets == 0:
         n_subsets = np.log(2. / delta) / (2 * epsilon ** 2) + 1
     output = []
     if rank == 0:
         for concept in concepts[
-                rank_idx[rank]:rank_idx[rank + 1]] + concepts[
-                rank_idx[-2]:rank_idx[-1]]:
+                       rank_idx[rank]:rank_idx[rank + 1]] + concepts[
+                                                            rank_idx[-2]:
+                                                            rank_idx[-1]]:
             stab_ext = 0.0
             stab_int = 0.0
             intent = np.array(list(concept[0]))
@@ -1524,7 +1791,7 @@ def approximate_stability(concepts, rel_matrix, n_subsets, delta=0, epsilon=0):
                         _give_random_idx(r_unique_ext, len(extent))]
                     if any([
                         set(subset_ext).issubset(se) for
-                            se in excluded_subset]):
+                        se in excluded_subset]):
                         continue
                     if _closure_probability_extensional(
                             intent, subset_ext, rel_matrix):
@@ -1554,7 +1821,7 @@ def approximate_stability(concepts, rel_matrix, n_subsets, delta=0, epsilon=0):
                         _give_random_idx(r_unique_int, len(intent))]
                     if any([
                         set(subset_int).issubset(se) for
-                            se in excluded_subset]):
+                        se in excluded_subset]):
                         continue
                     if _closure_probability_intensional(
                             extent, subset_int, rel_matrix):
@@ -1593,7 +1860,7 @@ def approximate_stability(concepts, rel_matrix, n_subsets, delta=0, epsilon=0):
                         _give_random_idx(r_unique_ext, len(extent))]
                     if any([
                         set(subset_ext).issubset(se) for
-                            se in excluded_subset]):
+                        se in excluded_subset]):
                         continue
                     if _closure_probability_extensional(
                             intent, subset_ext, rel_matrix):
@@ -1623,7 +1890,7 @@ def approximate_stability(concepts, rel_matrix, n_subsets, delta=0, epsilon=0):
                         _give_random_idx(r_unique_int, len(intent))]
                     if any([
                         set(subset_int).issubset(se) for
-                            se in excluded_subset]):
+                        se in excluded_subset]):
                         continue
                     if _closure_probability_intensional(
                             extent, subset_int, rel_matrix):
@@ -1790,7 +2057,7 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                 time_diff_all[np.argsort(np.abs(time_diff_all))])
             # Rescaling the spike times to realign to real time
             for time_diff in sorted_time_diff[
-                    np.abs(sorted_time_diff) < winlen]:
+                np.abs(sorted_time_diff) < winlen]:
                 conc1_new = [
                     t_old - time_diff for t_old in conc1]
                 # if conc1 is  of conc2 are disjoint or they have both been
@@ -1805,11 +2072,11 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                     continue
                 if not selected[id2]:
                     continue
-                if set(conc1_new).issuperset(conc2) and count2\
+                if set(conc1_new).issuperset(conc2) and count2 \
                         - count1 + h < min_occ:
                     selected[id2] = False
                     break
-                if set(conc2).issuperset(conc1_new) and count1\
+                if set(conc2).issuperset(conc1_new) and count1 \
                         - count2 + h < min_occ:
                     selected[id1] = False
                     break
@@ -1826,11 +2093,11 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                         # should be rejected
                         # according to the test for excess occurrences
                         reject_sub = (size2, supp_diff) in excluded \
-                            or supp_diff < min_occ
+                                     or supp_diff < min_occ
                         # Determine whether the superset (conc1_new) should be
                         # rejected according to the test for excess items
                         reject_sup = (size_diff, count1) in excluded \
-                            or size_diff < min_spikes
+                                     or size_diff < min_spikes
                     # 3d spectrum case
                     if len(excluded[0]) == 3:
                         # Determine whether the subset (conc2)
@@ -1839,13 +2106,13 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                         len_sub = max(
                             np.abs(np.diff(np.array(conc2) % winlen)))
                         reject_sub = (size2, supp_diff, len_sub) in excluded \
-                            or supp_diff < min_occ
+                                     or supp_diff < min_occ
                         # Determine whether the superset (conc1_new) should be
                         # rejected according to the test for excess items
                         len_sup = max(
                             np.abs(np.diff(np.array(conc1_new) % winlen)))
                         reject_sup = (size_diff, count1, len_sup) in excluded \
-                            or size_diff < min_spikes
+                                     or size_diff < min_spikes
                     # Reject the superset and/or the subset accordingly:
                     if reject_sub and not reject_sup:
                         selected[id2] = False
@@ -1872,11 +2139,11 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                         # Determine whether the subset (conc2) should be
                         # rejected according to the test for excess occurrences
                         reject_sub = (size2, supp_diff) in excluded \
-                            or supp_diff < min_occ
+                                     or supp_diff < min_occ
                         # Determine whether the superset (conc1_new) should be
                         # rejected according to the test for excess items
                         reject_sup = (size_diff, count1) in excluded \
-                            or size_diff < min_spikes
+                                     or size_diff < min_spikes
                     # 3d spectrum case
                     if len(excluded[0]) == 3:
                         # Determine whether the subset (conc2) should be
@@ -1884,14 +2151,14 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                         len_sub = max(
                             np.abs(np.diff(np.array(conc1) % winlen)))
                         reject_sub = (size2, supp_diff, len_sub) in excluded \
-                            or supp_diff < min_occ
+                                     or supp_diff < min_occ
                         # Determine whether the superset (conc1_new) should be
                         # rejected according to the test for excess items
                         len_sup = max(
                             np.abs(np.diff(np.array(conc2) % winlen)))
 
                         reject_sup = (size_diff, count1, len_sup) in excluded \
-                            or size_diff < min_spikes
+                                     or size_diff < min_spikes
                     # Reject the superset and/or the subset accordingly:
                     if reject_sub and not reject_sup:
                         selected[id1] = False
@@ -1915,12 +2182,13 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                     # 2d spectrum case
                     if len(excluded[0]) == 2:
                         reject_1 = (
-                            size1 - inter_size + k,
-                            count1) in \
-                            excluded or size1 - inter_size + k < min_spikes
+                                       size1 - inter_size + k,
+                                       count1) in \
+                                   excluded or size1 - inter_size + k < min_spikes
                         reject_2 = (
-                            size2 - inter_size + k, count2) in excluded or \
-                            size2 - inter_size + k < min_spikes
+                                       size2 - inter_size + k,
+                                       count2) in excluded or \
+                                   size2 - inter_size + k < min_spikes
                     # 3d spectrum case
                     if len(excluded[0]) == 3:
                         len_1 = max(
@@ -1928,13 +2196,13 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                         len_2 = max(
                             np.abs(np.diff(np.array(conc2) % winlen)))
                         reject_1 = (
-                            size1 - inter_size + k, count1,
-                            len_1) in excluded or \
-                            size1 - inter_size + k < min_spikes
+                                       size1 - inter_size + k, count1,
+                                       len_1) in excluded or \
+                                   size1 - inter_size + k < min_spikes
                         reject_2 = (
-                            size2 - inter_size + k, count2, len_2) \
-                            in excluded or \
-                            size2 - inter_size + k < min_spikes
+                                       size2 - inter_size + k, count2, len_2) \
+                                   in excluded or \
+                                   size2 - inter_size + k < min_spikes
 
                     # Reject accordingly:
                     if reject_2 and not reject_1:
@@ -2050,7 +2318,7 @@ def concept_output_to_patterns(concepts, winlen, binsize, pvalue_spectrum=None,
         output_dict['lags'] = (bin_ids - bin_ids[0])[1:] * binsize
         # Times (in binsize units) in which the pattern occurs
         output_dict['times'] = sorted(conc[1]) * binsize + bin_ids[0] * \
-            binsize + t_start
+                               binsize + t_start
         # If None is given in input to the pval spectrum the pvalue
         # is set to -1 (pvalue spectrum not available)
         # pattern dictionary appended to the output
