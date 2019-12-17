@@ -1331,18 +1331,14 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
             surrs, binsize, winlen, min_spikes=min_spikes,
             max_spikes=max_spikes, min_occ=min_occ, max_occ=max_occ,
             min_neu=min_neu, report=spectrum)[0]
-        if len(surr_concepts):
-            surr_concepts = np.array(surr_concepts)[:, :-1]
-        else:
-            if spectrum == '#':
-                surr_concepts = np.zeros(shape=(0, 3))
-            else:
-                surr_concepts = np.zeros(shape=(0, 2))
+        surr_concepts = _get_surr_concepts_as_np_array(surr_concepts, spectrum)
         time_surr_mining += time.time() - current_time_surr_mining
         current_time_surr_spectrum = time.time()
 
         if max_spikes is None:
             # if max_spikes not defined, set it to the number of spiketrains.
+            # TODO: think of a more appropriate way to get max_spikes if it is
+            #  not set.
             max_spikes = len(data)
         max_occs[i] = _get_max_occ(surr_concepts, min_spikes, max_spikes,
                                    winlen, spectrum, playing_it_safe)
@@ -1391,6 +1387,14 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
     print("Time for last loop in pvalue_spectrum: {}".format(
         time_pvalues))
     return pv_spec
+
+
+def _get_surr_concepts_as_np_array(surr_concepts, spectrum):
+    if len(surr_concepts):
+        return np.array(surr_concepts)[:, :-1]
+    if spectrum == '#':
+        return np.zeros(shape=(0, 2))
+    return np.zeros(shape=(0, 3))
 
 
 def _get_pvalue_spec(max_occs, min_spikes, max_spikes, min_occ,
