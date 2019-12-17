@@ -1405,7 +1405,7 @@ def _get_pvalue_spec(max_occs, min_spikes, max_spikes, min_occ,
 def _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes, min_occ,
                         n_surr):
     pv_spec = []
-    for size_id, pt_size in enumerate(range(min_spikes, min_spikes + 1)):
+    for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
         max_occs_size = max_occs[:, size_id]
         counts, occs = np.histogram(
             max_occs_size,
@@ -1423,7 +1423,7 @@ def _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes, min_occ,
 def _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes, min_occ,
                         n_surr, winlen):
     pv_spec = []
-    for size_id, pt_size in enumerate(range(min_spikes, min_spikes + 1)):
+    for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
         for dur in range(winlen):
             max_occs_size_dur = max_occs[:, size_id, dur]
             counts, occs = np.histogram(
@@ -1456,7 +1456,7 @@ def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen,
 def _get_max_occ_2d(surr_concepts, min_spikes, max_spikes):
     max_occ = np.zeros(shape=(max_spikes - min_spikes + 1),
                        dtype=int)
-    for size_id, pt_size in enumerate(range(min_spikes, min_spikes + 1)):
+    for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
         concepts_for_size = surr_concepts[
                                 surr_concepts[:, 0] == pt_size][:, 1]
         max_occ[size_id] = np.max(concepts_for_size,
@@ -1469,7 +1469,7 @@ def _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen):
     max_occ = np.zeros(shape=(max_spikes - min_spikes + 1,
                               winlen),
                        dtype=int)
-    for size_id, pt_size in enumerate(range(min_spikes, min_spikes + 1)):
+    for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
         concepts_for_size = surr_concepts[
                                 surr_concepts[:, 0] == pt_size][:, 1:]
         for dur in range(winlen):

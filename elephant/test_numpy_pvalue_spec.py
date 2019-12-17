@@ -54,6 +54,7 @@ class PVTestCase(unittest.TestCase):
             spectrum=spectrum)
 
         self.assertIsInstance(pv_spec_np, list)
+        self.assertEqual(len(pv_spec_np), len(pv_spec))
         for entry_np in pv_spec_np:
             self.assertIsInstance(entry_np, list)
             for entry in pv_spec:
@@ -107,6 +108,7 @@ class PVTestCase(unittest.TestCase):
             spectrum=spectrum)
 
         self.assertIsInstance(pv_spec_np, list)
+        self.assertEqual(len(pv_spec_np), len(pv_spec))
         for entry_np in pv_spec_np:
             self.assertIsInstance(entry_np, list)
             for entry in pv_spec:
