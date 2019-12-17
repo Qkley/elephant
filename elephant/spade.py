@@ -1304,11 +1304,6 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
     len_partition = n_surr // size  # length of each MPI task
     len_remainder = n_surr % size
 
-    # For each surrogate collect the signatures (z,c) such that (z*,c*)>=(z,c)
-    # exists in that surrogate. Group such signatures (with repetition)
-    # list of all signatures found in surrogates, initialized to []
-    surr_sgnts = []
-
     add_remainder = rank < len_remainder
 
     time_surr_generation = 0
@@ -1338,7 +1333,8 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
         current_time_surr_spectrum = time.time()
 
         if max_spikes is None:
-            raise ValueError('still not implemented for max_spikes is None')
+            # if max_spikes not defined, set it to the number of spiketrains.
+            max_spikes = len(data)
         max_occs[i] = _get_max_occ(surr_concepts, min_spikes, max_spikes,
                                    winlen, spectrum)
 
@@ -1400,7 +1396,7 @@ def _get_pvalue_spec(max_occs, min_spikes, max_spikes,
 def _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes,
                         n_surr):
     pv_spec = []
-    for size_id, size in enumerate(range(max_spikes, min_spikes - 1, -1)):
+    for size_id, pt_size in enumerate(range(max_spikes, min_spikes - 1, -1)):
         max_occs_size = max_occs[:, size_id]
         counts, occs = np.histogram(
             max_occs_size,
@@ -1411,14 +1407,14 @@ def _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes,
         pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
 
         for occ_id, occ in occs:
-            pv_spec.append([size, occ, pvalues[occ_id]])
+            pv_spec.append([pt_size, occ, pvalues[occ_id]])
     return pv_spec
 
 
 def _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes,
-                         n_surr, winlen):
+                        n_surr, winlen):
     pv_spec = []
-    for size_id, size in enumerate(range(max_spikes, min_spikes - 1, -1)):
+    for size_id, pt_size in enumerate(range(max_spikes, min_spikes - 1, -1)):
         for dur in range(winlen):
             max_occs_size_dur = max_occs[:, size_id, dur]
             counts, occs = np.histogram(
@@ -1430,7 +1426,7 @@ def _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes,
             pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
 
             for occ_id, occ in occs:
-                pv_spec.append([size, occ, dur, pvalues[occ_id]])
+                pv_spec.append([pt_size, occ, dur, pvalues[occ_id]])
     return pv_spec
 
 
@@ -1449,12 +1445,12 @@ def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen, spectrum):
 def _get_max_occ_2d(surr_concepts, min_spikes, max_spikes):
     max_occ = np.zeros(shape=(max_spikes - min_spikes + 1),
                        dtype=int)
-    for size_id, size in enumerate(range(max_spikes, min_spikes - 1, -1)):
+    for size_id, pt_size in enumerate(range(max_spikes, min_spikes - 1, -1)):
         concepts_for_size = surr_concepts[
-                                surr_concepts[:, 0] == size][:, 1]
+                                surr_concepts[:, 0] == pt_size][:, 1]
         max_occ[size_id] = np.max(concepts_for_size,
                                   initial=0).astype(int)
-        if size != max_spikes:
+        if pt_size != max_spikes:
             max_occ[size_id] = np.max(
                 max_occ[size_id - 1:size_id + 1]).astype(int)
 
@@ -1465,13 +1461,13 @@ def _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen):
     max_occ = np.zeros(shape=(max_spikes - min_spikes + 1,
                               winlen),
                        dtype=int)
-    for size_id, size in enumerate(range(max_spikes, min_spikes - 1, -1)):
+    for size_id, pt_size in enumerate(range(max_spikes, min_spikes - 1, -1)):
         concepts_for_size = surr_concepts[
-                                surr_concepts[:, 0] == size][:, 1:]
+                                surr_concepts[:, 0] == pt_size][:, 1:]
         for dur in range(winlen):
             occs = concepts_for_size[concepts_for_size[:, 1] == dur][:, 0]
             max_occ[size_id, dur] = np.max(occs, initial=0)
-        if size != max_spikes:
+        if pt_size != max_spikes:
             max_occ[size_id] = np.max(max_occ[size_id - 1:size_id + 1], axis=1)
 
     return max_occ
