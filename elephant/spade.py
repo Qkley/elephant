@@ -81,10 +81,13 @@ except ImportError:  # pragma: no cover
 
 try:
     from elephant.spade_src import fim
-
-    HAVE_FIM = True
+#
+#    HAVE_FIM = True
+#except ImportError:  # pragma: no cover
+#    HAVE_FIM = False
 except ImportError:  # pragma: no cover
-    HAVE_FIM = False
+    import fim
+HAVE_FIM = True
 
 
 def spade(data, binsize, winlen, min_spikes=2, min_occ=2, max_spikes=None,
@@ -1328,7 +1331,13 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
             surrs, binsize, winlen, min_spikes=min_spikes,
             max_spikes=max_spikes, min_occ=min_occ, max_occ=max_occ,
             min_neu=min_neu, report=spectrum)[0]
-        surr_concepts = np.array(surr_concepts)[:, :-1]
+        if len(surr_concepts):
+            surr_concepts = np.array(surr_concepts)[:, :-1]
+        else:
+            if spectrum == '#':
+                surr_concepts = np.zeros(shape=(0, 3))
+            else:
+                surr_concepts = np.zeros(shape=(0, 2))
         time_surr_mining += time.time() - current_time_surr_mining
         current_time_surr_spectrum = time.time()
 
@@ -1375,7 +1384,7 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
     time_pvalues = time.time()
     # Compute the p-value spectrum, and return it
 
-    pv_spec = _get_pvalue_spec(max_occs, min_spikes, max_spikes,
+    pv_spec = _get_pvalue_spec(max_occs, min_spikes, max_spikes, min_occ,
                                n_surr, winlen, spectrum)
 
     time_pvalues = time.time() - time_pvalues
@@ -1384,48 +1393,48 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
     return pv_spec
 
 
-def _get_pvalue_spec(max_occs, min_spikes, max_spikes,
+def _get_pvalue_spec(max_occs, min_spikes, max_spikes, min_occ,
                      n_surr, winlen, spectrum):
     if spectrum == '#':
-        return _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes,
+        return _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes, min_occ,
                                     n_surr)
-    return _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes,
+    return _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes, min_occ,
                                 n_surr, winlen)
 
 
-def _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes,
+def _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes, min_occ,
                         n_surr):
     pv_spec = []
-    for size_id, pt_size in enumerate(range(max_spikes, min_spikes - 1, -1)):
+    for size_id, pt_size in enumerate(range(min_spikes, min_spikes + 1)):
         max_occs_size = max_occs[:, size_id]
         counts, occs = np.histogram(
             max_occs_size,
-            bins=np.arange(np.min(max_occs_size),
+            bins=np.arange(min_occ,
                            np.max(max_occs_size) + 2))
         occs = occs[:-1]
         prob_mass_func = counts / float(n_surr)
         pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
 
-        for occ_id, occ in occs:
+        for occ_id, occ in enumerate(occs):
             pv_spec.append([pt_size, occ, pvalues[occ_id]])
     return pv_spec
 
 
-def _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes,
+def _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes, min_occ,
                         n_surr, winlen):
     pv_spec = []
-    for size_id, pt_size in enumerate(range(max_spikes, min_spikes - 1, -1)):
+    for size_id, pt_size in enumerate(range(min_spikes, min_spikes + 1)):
         for dur in range(winlen):
             max_occs_size_dur = max_occs[:, size_id, dur]
             counts, occs = np.histogram(
                 max_occs_size_dur,
-                bins=np.arange(np.min(max_occs_size_dur),
+                bins=np.arange(min_occ,
                                np.max(max_occs_size_dur) + 2))
             occs = occs[:-1]
-            prob_mass_func = counts / float(n_surr)
+            prob_mass_func = counts[:] / float(n_surr)
             pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
 
-            for occ_id, occ in occs:
+            for occ_id, occ in enumerate(occs):
                 pv_spec.append([pt_size, occ, dur, pvalues[occ_id]])
     return pv_spec
 
@@ -1436,23 +1445,22 @@ def _get_max_occs_shape(n, min_spikes, max_spikes, winlen, spectrum):
     return n, max_spikes - min_spikes + 1, winlen
 
 
-def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen, spectrum):
+def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen,
+                 spectrum):
     if spectrum == '#':
         return _get_max_occ_2d(surr_concepts, min_spikes, max_spikes)
-    return _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen)
+    return _get_max_occ_3d(surr_concepts, min_spikes, max_spikes,
+                           winlen)
 
 
 def _get_max_occ_2d(surr_concepts, min_spikes, max_spikes):
     max_occ = np.zeros(shape=(max_spikes - min_spikes + 1),
                        dtype=int)
-    for size_id, pt_size in enumerate(range(max_spikes, min_spikes - 1, -1)):
+    for size_id, pt_size in enumerate(range(min_spikes, min_spikes + 1)):
         concepts_for_size = surr_concepts[
                                 surr_concepts[:, 0] == pt_size][:, 1]
         max_occ[size_id] = np.max(concepts_for_size,
                                   initial=0).astype(int)
-        if pt_size != max_spikes:
-            max_occ[size_id] = np.max(
-                max_occ[size_id - 1:size_id + 1]).astype(int)
 
     return max_occ
 
@@ -1461,14 +1469,12 @@ def _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen):
     max_occ = np.zeros(shape=(max_spikes - min_spikes + 1,
                               winlen),
                        dtype=int)
-    for size_id, pt_size in enumerate(range(max_spikes, min_spikes - 1, -1)):
+    for size_id, pt_size in enumerate(range(min_spikes, min_spikes + 1)):
         concepts_for_size = surr_concepts[
                                 surr_concepts[:, 0] == pt_size][:, 1:]
         for dur in range(winlen):
             occs = concepts_for_size[concepts_for_size[:, 1] == dur][:, 0]
             max_occ[size_id, dur] = np.max(occs, initial=0)
-        if pt_size != max_spikes:
-            max_occ[size_id] = np.max(max_occ[size_id - 1:size_id + 1], axis=1)
 
     return max_occ
 
