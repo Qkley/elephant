@@ -35,6 +35,8 @@ class PVTestCase(unittest.TestCase):
                for ind in range(num_spiketrains)]
 
         np.random.seed(0)
+        print()
+        print('Old p-value spec', spectrum)
         pv_spec = spade.pvalue_spectrum(
             sts, binsize, winlen, dither=dither,
             n_surr=n_surr, min_spikes=min_spikes,
@@ -43,6 +45,7 @@ class PVTestCase(unittest.TestCase):
             spectrum=spectrum)
 
         np.random.seed(0)
+        print('New p-value spec', spectrum)
         pv_spec_np = spade.pvalue_spectrum_numpy(
             sts, binsize, winlen, dither=dither,
             n_surr=n_surr, min_spikes=min_spikes,
@@ -85,6 +88,8 @@ class PVTestCase(unittest.TestCase):
                for ind in range(num_spiketrains)]
 
         np.random.seed(0)
+        print()
+        print('Old p-value spec', spectrum)
         pv_spec = spade.pvalue_spectrum(
             sts, binsize, winlen, dither=dither,
             n_surr=n_surr, min_spikes=min_spikes,
@@ -93,6 +98,7 @@ class PVTestCase(unittest.TestCase):
             spectrum=spectrum)
 
         np.random.seed(0)
+        print('New p-value spec', spectrum)
         pv_spec_np = spade.pvalue_spectrum_numpy(
             sts, binsize, winlen, dither=dither,
             n_surr=n_surr, min_spikes=min_spikes,
