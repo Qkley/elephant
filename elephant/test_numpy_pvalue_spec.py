@@ -28,6 +28,7 @@ class PVTestCase(unittest.TestCase):
         max_occ = None
         min_neu = 2
         spectrum = '#'
+        playing_it_safe = False
 
         np.random.seed(0)
         hpr = gen.homogeneous_poisson_process_with_refr_period
@@ -51,7 +52,7 @@ class PVTestCase(unittest.TestCase):
             n_surr=n_surr, min_spikes=min_spikes,
             min_occ=min_occ, max_spikes=max_spikes,
             max_occ=max_occ, min_neu=min_neu,
-            spectrum=spectrum)
+            spectrum=spectrum, playing_it_safe=playing_it_safe)
 
         self.assertIsInstance(pv_spec_np, list)
         self.assertEqual(len(pv_spec_np), len(pv_spec))
@@ -82,6 +83,7 @@ class PVTestCase(unittest.TestCase):
         max_occ = None
         min_neu = 2
         spectrum = '3d#'
+        playing_it_safe = False
 
         np.random.seed(0)
         hpr = gen.homogeneous_poisson_process_with_refr_period
@@ -105,7 +107,7 @@ class PVTestCase(unittest.TestCase):
             n_surr=n_surr, min_spikes=min_spikes,
             min_occ=min_occ, max_spikes=max_spikes,
             max_occ=max_occ, min_neu=min_neu,
-            spectrum=spectrum)
+            spectrum=spectrum, playing_it_safe=playing_it_safe)
 
         self.assertIsInstance(pv_spec_np, list)
         self.assertEqual(len(pv_spec_np), len(pv_spec))

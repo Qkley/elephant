@@ -1217,7 +1217,7 @@ def pvalue_spectrum(data, binsize, winlen, dither, n_surr, min_spikes=2,
 
 def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
                           min_occ=2, max_spikes=None, max_occ=None, min_neu=1,
-                          spectrum='#'):
+                          spectrum='#', playing_it_safe=False):
     """
     Compute the p-value spectrum of pattern signatures extracted from
     surrogates of parallel spike trains, under the null hypothesis of
@@ -1345,7 +1345,7 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
             # if max_spikes not defined, set it to the number of spiketrains.
             max_spikes = len(data)
         max_occs[i] = _get_max_occ(surr_concepts, min_spikes, max_spikes,
-                                   winlen, spectrum)
+                                   winlen, spectrum, playing_it_safe)
 
         time_surr_spectrum += time.time() - current_time_surr_spectrum
     print("Time for surrogate generation on rank {}: {}".format(
@@ -1446,14 +1446,16 @@ def _get_max_occs_shape(n, min_spikes, max_spikes, winlen, spectrum):
 
 
 def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen,
-                 spectrum):
+                 spectrum, playing_it_safe=False):
     if spectrum == '#':
-        return _get_max_occ_2d(surr_concepts, min_spikes, max_spikes)
+        return _get_max_occ_2d(surr_concepts, min_spikes, max_spikes,
+                               playing_it_safe)
     return _get_max_occ_3d(surr_concepts, min_spikes, max_spikes,
-                           winlen)
+                           winlen, playing_it_safe)
 
 
-def _get_max_occ_2d(surr_concepts, min_spikes, max_spikes):
+def _get_max_occ_2d(surr_concepts, min_spikes, max_spikes,
+                    playing_it_safe=False):
     max_occ = np.zeros(shape=(max_spikes - min_spikes + 1),
                        dtype=int)
     for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
@@ -1461,11 +1463,15 @@ def _get_max_occ_2d(surr_concepts, min_spikes, max_spikes):
                                 surr_concepts[:, 0] == pt_size][:, 1]
         max_occ[size_id] = np.max(concepts_for_size,
                                   initial=0).astype(int)
-
+    if playing_it_safe:
+        for pt_size in range(max_spikes - 1, min_spikes - 1, -1):
+            size_id = pt_size - min_spikes
+            max_occ[size_id] = np.max(max_occ[size_id:size_id + 2])
     return max_occ
 
 
-def _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen):
+def _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen,
+                    playing_it_safe=False):
     max_occ = np.zeros(shape=(max_spikes - min_spikes + 1,
                               winlen),
                        dtype=int)
@@ -1475,6 +1481,11 @@ def _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen):
         for dur in range(winlen):
             occs = concepts_for_size[concepts_for_size[:, 1] == dur][:, 0]
             max_occ[size_id, dur] = np.max(occs, initial=0)
+
+    if playing_it_safe:
+        for pt_size in range(max_spikes - 1, min_spikes - 1, -1):
+            size_id = pt_size - min_spikes
+            max_occ[size_id] = np.max(max_occ[size_id:size_id + 2], axis=0)
 
     return max_occ
 
