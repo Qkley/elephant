@@ -16,12 +16,12 @@ class PVTestCase(unittest.TestCase):
         refr_period = 4 * pq.ms
         t_start = 0. * pq.ms
         t_stop = 1000. * pq.ms
-        num_spiketrains = 20
+        num_spiketrains = 40
 
         binsize = 3 * pq.ms
         winlen = 5
         dither = 10 * pq.ms
-        n_surr = 10
+        n_surr = 8
         min_spikes = 2
         min_occ = 2
         max_spikes = 10
@@ -71,12 +71,12 @@ class PVTestCase(unittest.TestCase):
         refr_period = 4 * pq.ms
         t_start = 0. * pq.ms
         t_stop = 1000. * pq.ms
-        num_spiketrains = 20
+        num_spiketrains = 40
 
         binsize = 3 * pq.ms
         winlen = 5
         dither = 10 * pq.ms
-        n_surr = 10
+        n_surr = 8
         min_spikes = 2
         min_occ = 2
         max_spikes = 10

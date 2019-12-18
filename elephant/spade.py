@@ -1435,7 +1435,7 @@ def _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes, min_occ,
                 bins=np.arange(min_occ,
                                np.max(max_occs_size_dur) + 2))
             occs = occs[:-1]
-            prob_mass_func = counts[:] / float(n_surr)
+            prob_mass_func = counts / float(n_surr)
             pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
 
             for occ_id, occ in enumerate(occs):
