@@ -16,12 +16,12 @@ class PVTestCase(unittest.TestCase):
         refr_period = 4 * pq.ms
         t_start = 0. * pq.ms
         t_stop = 1000. * pq.ms
-        num_spiketrains = 40
+        num_spiketrains = 20
 
         binsize = 3 * pq.ms
         winlen = 5
         dither = 10 * pq.ms
-        n_surr = 8
+        n_surr = 10
         min_spikes = 2
         min_occ = 2
         max_spikes = 10
@@ -58,9 +58,10 @@ class PVTestCase(unittest.TestCase):
         self.assertEqual(len(pv_spec_np), len(pv_spec))
         for entry_np in pv_spec_np:
             self.assertIsInstance(entry_np, list)
-            for entry in pv_spec:
+            for entry_id, entry in enumerate(pv_spec):
                 if entry_np[0] == entry[0] and entry_np[1] == entry[1]:
                     self.assertAlmostEqual(entry_np[2], entry[2])
+                    pv_spec.pop(entry_id)
                 break
             else:
                 raise AssertionError('This entry {} was not found'.format(
@@ -71,12 +72,12 @@ class PVTestCase(unittest.TestCase):
         refr_period = 4 * pq.ms
         t_start = 0. * pq.ms
         t_stop = 1000. * pq.ms
-        num_spiketrains = 40
+        num_spiketrains = 20
 
         binsize = 3 * pq.ms
         winlen = 5
         dither = 10 * pq.ms
-        n_surr = 8
+        n_surr = 10
         min_spikes = 2
         min_occ = 2
         max_spikes = 10
@@ -113,10 +114,11 @@ class PVTestCase(unittest.TestCase):
         self.assertEqual(len(pv_spec_np), len(pv_spec))
         for entry_np in pv_spec_np:
             self.assertIsInstance(entry_np, list)
-            for entry in pv_spec:
+            for entry_id, entry in enumerate(pv_spec):
                 if entry_np[0] == entry[0] and entry_np[1] == entry[1] and\
                         entry_np[2] == entry[2]:
                     self.assertAlmostEqual(entry_np[3], entry[3])
+                    pv_spec.pop(entry_id)
                 break
             else:
                 raise AssertionError('This entry {} was not found'.format(

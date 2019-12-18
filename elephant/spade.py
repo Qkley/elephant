@@ -1316,9 +1316,7 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
     max_occs_shape = _get_max_occs_shape(len_partition + add_remainder,
                                          min_spikes, max_spikes,
                                          winlen, spectrum)
-    max_occs = np.zeros(
-        shape=max_occs_shape,
-        dtype=int)
+    max_occs = np.zeros(shape=max_occs_shape)
 
     for i in range(len_partition + add_remainder):
         current_time_surr_generation = time.time()
@@ -1358,20 +1356,12 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
     if size != 1:
         time_mpi = time.time()
 
-        max_occs_list = comm.gather(max_occs, root=0)
+        max_occs = comm.gather(max_occs, root=0)
 
         if rank != 0:  # pragma: no cover
             return []
 
-        max_occs_shape = _get_max_occs_shape(n_surr, min_spikes, max_spikes,
-                                             winlen, spectrum)
-        max_occs = np.empty(shape=max_occs_shape,
-                            dtype=int)
-
-        counter_elements = 0
-        for rank_id, entry in enumerate(max_occs_list):
-            max_occs[counter_elements:counter_elements+entry.shape[0]] = entry
-            counter_elements += entry.shape[0]
+        max_occs = np.vstack(max_occs)
 
         time_mpi = time.time() - time_mpi
         print("Time for MPI gather: {}".format(
@@ -1415,8 +1405,8 @@ def _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes, min_occ,
             max_occs_size,
             bins=np.arange(min_occ,
                            np.max(max_occs_size) + 2))
-        occs = occs[:-1]
-        prob_mass_func = counts / float(n_surr)
+        occs = occs[:-1].astype(int)
+        prob_mass_func = counts / n_surr
         pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
 
         for occ_id, occ in enumerate(occs):
@@ -1434,8 +1424,8 @@ def _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes, min_occ,
                 max_occs_size_dur,
                 bins=np.arange(min_occ,
                                np.max(max_occs_size_dur) + 2))
-            occs = occs[:-1]
-            prob_mass_func = counts / float(n_surr)
+            occs = occs[:-1].astype(int)
+            prob_mass_func = counts / n_surr
             pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
 
             for occ_id, occ in enumerate(occs):
@@ -1460,13 +1450,12 @@ def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen,
 
 def _get_max_occ_2d(surr_concepts, min_spikes, max_spikes,
                     playing_it_safe=False):
-    max_occ = np.zeros(shape=(max_spikes - min_spikes + 1),
-                       dtype=int)
+    max_occ = np.zeros(shape=(max_spikes - min_spikes + 1))
     for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
         concepts_for_size = surr_concepts[
                                 surr_concepts[:, 0] == pt_size][:, 1]
         max_occ[size_id] = np.max(concepts_for_size,
-                                  initial=0).astype(int)
+                                  initial=0)
     if playing_it_safe:
         for pt_size in range(max_spikes - 1, min_spikes - 1, -1):
             size_id = pt_size - min_spikes
@@ -1477,8 +1466,7 @@ def _get_max_occ_2d(surr_concepts, min_spikes, max_spikes,
 def _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen,
                     playing_it_safe=False):
     max_occ = np.zeros(shape=(max_spikes - min_spikes + 1,
-                              winlen),
-                       dtype=int)
+                              winlen))
     for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
         concepts_for_size = surr_concepts[
                                 surr_concepts[:, 0] == pt_size][:, 1:]
