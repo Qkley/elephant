@@ -805,6 +805,9 @@ def _fpgrowth(transactions, min_c=2, min_z=2, max_z=None,
         if report == 'a':
             concepts_mining.time_post += time.time() - time_post
             return concepts
+        # TODO: Do we really need the number of patterns here
+        #  or is it a unused quantity?
+        #  I suppose, it was used in an older version of the p-value spectrum.
         else:
             if report == '#':
                 for (z, c) in np.transpose(np.where(spec_matrix != 0)):
@@ -1313,10 +1316,9 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
     time_surr_mining = 0
     time_surr_spectrum = 0
 
-    max_occs_shape = _get_max_occs_shape(len_partition + add_remainder,
+    max_occs = _get_empty_max_occs_array(len_partition + add_remainder,
                                          min_spikes, max_spikes,
                                          winlen, spectrum)
-    max_occs = np.zeros(shape=max_occs_shape)
 
     for i in range(len_partition + add_remainder):
         current_time_surr_generation = time.time()
@@ -1336,7 +1338,8 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
         if max_spikes is None:
             # if max_spikes not defined, set it to the number of spiketrains.
             # TODO: think of a more appropriate way to get max_spikes if it is
-            #  not set.
+            #  not set. this should than correspond to how it is done, in the
+            #  concept mining of the original data.
             max_spikes = len(data)
         max_occs[i] = _get_max_occ(surr_concepts, min_spikes, max_spikes,
                                    winlen, spectrum, playing_it_safe)
@@ -1361,6 +1364,8 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
         if rank != 0:  # pragma: no cover
             return []
 
+        # The gather operator gives a list out. This is rearranged as a 2 resp.
+        # 3 dimensional numpy-array.
         max_occs = np.vstack(max_occs)
 
         time_mpi = time.time() - time_mpi
@@ -1370,6 +1375,8 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
     time_pvalues = time.time()
     # Compute the p-value spectrum, and return it
 
+    # TODO: When we don't need the prints anymore the result of p-value spec,
+    #  can be directly returned.
     pv_spec = _get_pvalue_spec(max_occs, min_spikes, max_spikes, min_occ,
                                n_surr, winlen, spectrum)
 
@@ -1380,6 +1387,19 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
 
 
 def _get_surr_concepts_as_np_array(surr_concepts, spectrum):
+    """
+
+    Parameters
+    ----------
+    surr_concepts: List[List]
+    spectrum: str
+
+    Returns
+    -------
+    np.ndarray:
+        The surr_concepts as numpy-array, discarding each time the last
+         element, which is not needed for the pv-spec.
+    """
     if len(surr_concepts):
         return np.array(surr_concepts)[:, :-1]
     if spectrum == '#':
@@ -1389,15 +1409,50 @@ def _get_surr_concepts_as_np_array(surr_concepts, spectrum):
 
 def _get_pvalue_spec(max_occs, min_spikes, max_spikes, min_occ,
                      n_surr, winlen, spectrum):
+    """
+    Wrapper to the 2d and 3d version of the p-value spectrum getter.
+
+    Parameters
+    ----------
+    max_occs: np.ndarray
+    min_spikes: int
+    max_spikes: int
+    min_occ: int
+    n_surr: int
+    winlen: int
+    spectrum: str
+        can be '#' or '3d#'.
+
+    Returns
+    -------
+
+    """
     if spectrum == '#':
-        return _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes, min_occ,
-                                    n_surr)
-    return _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes, min_occ,
-                                n_surr, winlen)
+        return _get_pvalue_spec_2d(
+            max_occs, min_spikes, max_spikes, min_occ, n_surr)
+    return _get_pvalue_spec_3d(
+        max_occs, min_spikes, max_spikes, min_occ, n_surr, winlen)
 
 
 def _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes, min_occ,
                         n_surr):
+    """
+    This function computes the P-value spectrum for 2d-Spade from the maximal
+    occurence per pattern size in each realization.
+
+    Parameters
+    ----------
+    max_occs: np.ndarray
+    min_spikes: int
+    max_spikes: int
+    min_occ: int
+    n_surr: int
+
+    Returns
+    -------
+    List[List]:
+        each entry has the form: [pattern_size, pattern_occ, p_value]
+    """
     pv_spec = []
     for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
         max_occs_size = max_occs[:, size_id]
@@ -1406,8 +1461,13 @@ def _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes, min_occ,
             bins=np.arange(min_occ,
                            np.max(max_occs_size) + 2))
         occs = occs[:-1].astype(int)
-        prob_mass_func = counts / n_surr
-        pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
+
+        # The following line summarizes this two statements:
+        # prob_mass_func = counts / n_surr
+        # pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
+        # but it gives less numerical side effects like 1.0 -> 0.99999
+
+        pvalues = np.cumsum(counts[::-1])[::-1] / n_surr
 
         for occ_id, occ in enumerate(occs):
             pv_spec.append([pt_size, occ, pvalues[occ_id]])
@@ -1416,6 +1476,25 @@ def _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes, min_occ,
 
 def _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes, min_occ,
                         n_surr, winlen):
+    """
+    This function computes the P-value spectrum for 3d-Spade from the maximal
+    occurence per pattern size and duration in each realization.
+
+    Parameters
+    ----------
+    max_occs: np.ndarray
+    min_spikes: int
+    max_spikes: int
+    min_occ: int
+    n_surr: int
+    winlen: int
+
+    Returns
+    -------
+    List[List]:
+        each entry has the form:
+        [pattern_size, pattern_occ, pattern_dur, p_value]
+    """
     pv_spec = []
     for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
         for dur in range(winlen):
@@ -1425,22 +1504,47 @@ def _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes, min_occ,
                 bins=np.arange(min_occ,
                                np.max(max_occs_size_dur) + 2))
             occs = occs[:-1].astype(int)
-            prob_mass_func = counts / n_surr
-            pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
+
+            # The following line summarizes this two statements:
+            # prob_mass_func = counts / n_surr
+            # pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
+            # but it gives less numerical side effects like 1.0 -> 0.99999
+
+            pvalues = np.cumsum(counts[::-1])[::-1] / n_surr
 
             for occ_id, occ in enumerate(occs):
                 pv_spec.append([pt_size, occ, dur, pvalues[occ_id]])
     return pv_spec
 
 
-def _get_max_occs_shape(n, min_spikes, max_spikes, winlen, spectrum):
+def _get_empty_max_occs_array(n, min_spikes, max_spikes, winlen, spectrum):
     if spectrum == '#':
-        return n, max_spikes - min_spikes + 1
-    return n, max_spikes - min_spikes + 1, winlen
+        return np.empty(shape=(n, max_spikes - min_spikes + 1))
+    return np.empty(shape=(n, max_spikes - min_spikes + 1, winlen))
 
 
 def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen,
                  spectrum, playing_it_safe=False):
+    """
+    Wrapper to the 2d and 3d version of the maximal occurence getter.
+
+    Parameters
+    ----------
+    surr_concepts: List[List]
+    min_spikes: int
+    max_spikes: int
+    winlen: int
+    spectrum: str
+        can be '#' or '3d#'.
+    playing_it_safe: bool, optional
+        With this option, the entire partial order mechanism of the old
+        function is used. The author of the script thinks, that it is
+        unnecessary.
+
+    Returns
+    -------
+
+    """
     if spectrum == '#':
         return _get_max_occ_2d(surr_concepts, min_spikes, max_spikes,
                                playing_it_safe)
@@ -1450,6 +1554,24 @@ def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen,
 
 def _get_max_occ_2d(surr_concepts, min_spikes, max_spikes,
                     playing_it_safe=False):
+    """
+    This function takes from a list of surrogate_concepts those concepts which
+    have the highest occurrence for a given pattern size.
+
+    Parameters
+    ----------
+    surr_concepts: List[List]
+    min_spikes: int
+    max_spikes: int
+    playing_it_safe: bool, optional
+
+    Returns
+    -------
+    np.ndarray:
+        One-dimensional array. Each element corresponds to a highest occurrence
+        for a specific pattern_size (which range from min_spikes to
+        max_spikes).
+    """
     max_occ = np.zeros(shape=(max_spikes - min_spikes + 1))
     for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
         concepts_for_size = surr_concepts[
@@ -1465,6 +1587,27 @@ def _get_max_occ_2d(surr_concepts, min_spikes, max_spikes,
 
 def _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen,
                     playing_it_safe=False):
+    """
+    This function takes from a list of surrogate_concepts those concepts which
+    have the highest occurrence for a given pattern size and duration.
+
+    Parameters
+    ----------
+    surr_concepts: List[List]
+    min_spikes: int
+    max_spikes: int
+    winlen: int
+    playing_it_safe: bool, optional
+
+    Returns
+    -------
+    np.ndarray:
+        Two-dimensional array. Each element corresponds to a highest occurrence
+        for a specific pattern size (which range from min_spikes to max_spikes)
+        and pattern duration (which range from 0 to winlen-1).
+        The first axis corresponds to the pattern size the second to the
+        duration.
+    """
     max_occ = np.zeros(shape=(max_spikes - min_spikes + 1,
                               winlen))
     for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
