@@ -83,7 +83,7 @@ try:
     from elephant.spade_src import fim
 #
 #    HAVE_FIM = True
-#except ImportError:  # pragma: no cover
+# except ImportError:  # pragma: no cover
 #    HAVE_FIM = False
 except ImportError:  # pragma: no cover
     import fim
@@ -1057,8 +1057,8 @@ def _fca_filter(concept, winlen, min_c, min_z, max_c, max_z, min_neu):
 
 
 def pvalue_spectrum(data, binsize, winlen, dither, n_surr, min_spikes=2,
-                          min_occ=2, max_spikes=None, max_occ=None, min_neu=1,
-                          spectrum='#'):
+                    min_occ=2, max_spikes=None, max_occ=None, min_neu=1,
+                    spectrum='#'):
     """
     Compute the p-value spectrum of pattern signatures extracted from
     surrogates of parallel spike trains, under the null hypothesis of
@@ -1318,7 +1318,7 @@ def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen, spectrum):
 
         for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
             concepts_for_size = surr_concepts[
-                                    surr_concepts[:, 0] == pt_size][:, 1]
+                surr_concepts[:, 0] == pt_size][:, 1]
             max_occ[size_id] = np.max(concepts_for_size, initial=0)
 
         for pt_size in range(max_spikes - 1, min_spikes - 1, -1):
@@ -1330,7 +1330,7 @@ def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen, spectrum):
 
         for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
             concepts_for_size = surr_concepts[
-                                    surr_concepts[:, 0] == pt_size][:, 1:]
+                surr_concepts[:, 0] == pt_size][:, 1:]
 
             for dur in range(winlen):
                 occs = concepts_for_size[concepts_for_size[:, 1] == dur][:, 0]
@@ -1619,16 +1619,16 @@ def approximate_stability(concepts, rel_matrix, n_subsets, delta=0, epsilon=0):
         rank_idx = list(
             np.arange(
                 0, len(concepts) - len(concepts) % size + 1,
-                   len(concepts) // size)) + [len(concepts)]
+                len(concepts) // size)) + [len(concepts)]
     # Calculate optimal n
     if delta + epsilon > 0 and n_subsets == 0:
         n_subsets = np.log(2. / delta) / (2 * epsilon ** 2) + 1
     output = []
     if rank == 0:
         for concept in concepts[
-                       rank_idx[rank]:rank_idx[rank + 1]] + concepts[
-                                                            rank_idx[-2]:
-                                                            rank_idx[-1]]:
+                rank_idx[rank]:rank_idx[rank + 1]] + concepts[
+                rank_idx[-2]:
+                rank_idx[-1]]:
             stab_ext = 0.0
             stab_int = 0.0
             intent = np.array(list(concept[0]))
@@ -1656,8 +1656,8 @@ def approximate_stability(concepts, rel_matrix, n_subsets, delta=0, epsilon=0):
                     subset_ext = extent[
                         _give_random_idx(r_unique_ext, len(extent))]
                     if any([
-                        set(subset_ext).issubset(se) for
-                        se in excluded_subset]):
+                            set(subset_ext).issubset(se) for
+                            se in excluded_subset]):
                         continue
                     if _closure_probability_extensional(
                             intent, subset_ext, rel_matrix):
@@ -1686,8 +1686,8 @@ def approximate_stability(concepts, rel_matrix, n_subsets, delta=0, epsilon=0):
                     subset_int = intent[
                         _give_random_idx(r_unique_int, len(intent))]
                     if any([
-                        set(subset_int).issubset(se) for
-                        se in excluded_subset]):
+                            set(subset_int).issubset(se) for
+                            se in excluded_subset]):
                         continue
                     if _closure_probability_intensional(
                             extent, subset_int, rel_matrix):
@@ -1725,8 +1725,8 @@ def approximate_stability(concepts, rel_matrix, n_subsets, delta=0, epsilon=0):
                     subset_ext = extent[
                         _give_random_idx(r_unique_ext, len(extent))]
                     if any([
-                        set(subset_ext).issubset(se) for
-                        se in excluded_subset]):
+                            set(subset_ext).issubset(se) for
+                            se in excluded_subset]):
                         continue
                     if _closure_probability_extensional(
                             intent, subset_ext, rel_matrix):
@@ -1755,8 +1755,8 @@ def approximate_stability(concepts, rel_matrix, n_subsets, delta=0, epsilon=0):
                     subset_int = intent[
                         _give_random_idx(r_unique_int, len(intent))]
                     if any([
-                        set(subset_int).issubset(se) for
-                        se in excluded_subset]):
+                            set(subset_int).issubset(se) for
+                            se in excluded_subset]):
                         continue
                     if _closure_probability_intensional(
                             extent, subset_int, rel_matrix):
@@ -1923,7 +1923,7 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                 time_diff_all[np.argsort(np.abs(time_diff_all))])
             # Rescaling the spike times to realign to real time
             for time_diff in sorted_time_diff[
-                np.abs(sorted_time_diff) < winlen]:
+                    np.abs(sorted_time_diff) < winlen]:
                 conc1_new = [
                     t_old - time_diff for t_old in conc1]
                 # if conc1 is  of conc2 are disjoint or they have both been
@@ -1959,11 +1959,11 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                         # should be rejected
                         # according to the test for excess occurrences
                         reject_sub = (size2, supp_diff) in excluded \
-                                     or supp_diff < min_occ
+                            or supp_diff < min_occ
                         # Determine whether the superset (conc1_new) should be
                         # rejected according to the test for excess items
                         reject_sup = (size_diff, count1) in excluded \
-                                     or size_diff < min_spikes
+                            or size_diff < min_spikes
                     # 3d spectrum case
                     if len(excluded[0]) == 3:
                         # Determine whether the subset (conc2)
@@ -1972,13 +1972,13 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                         len_sub = max(
                             np.abs(np.diff(np.array(conc2) % winlen)))
                         reject_sub = (size2, supp_diff, len_sub) in excluded \
-                                     or supp_diff < min_occ
+                            or supp_diff < min_occ
                         # Determine whether the superset (conc1_new) should be
                         # rejected according to the test for excess items
                         len_sup = max(
                             np.abs(np.diff(np.array(conc1_new) % winlen)))
                         reject_sup = (size_diff, count1, len_sup) in excluded \
-                                     or size_diff < min_spikes
+                            or size_diff < min_spikes
                     # Reject the superset and/or the subset accordingly:
                     if reject_sub and not reject_sup:
                         selected[id2] = False
@@ -2005,11 +2005,11 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                         # Determine whether the subset (conc2) should be
                         # rejected according to the test for excess occurrences
                         reject_sub = (size2, supp_diff) in excluded \
-                                     or supp_diff < min_occ
+                            or supp_diff < min_occ
                         # Determine whether the superset (conc1_new) should be
                         # rejected according to the test for excess items
                         reject_sup = (size_diff, count1) in excluded \
-                                     or size_diff < min_spikes
+                            or size_diff < min_spikes
                     # 3d spectrum case
                     if len(excluded[0]) == 3:
                         # Determine whether the subset (conc2) should be
@@ -2017,14 +2017,14 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                         len_sub = max(
                             np.abs(np.diff(np.array(conc1) % winlen)))
                         reject_sub = (size2, supp_diff, len_sub) in excluded \
-                                     or supp_diff < min_occ
+                            or supp_diff < min_occ
                         # Determine whether the superset (conc1_new) should be
                         # rejected according to the test for excess items
                         len_sup = max(
                             np.abs(np.diff(np.array(conc2) % winlen)))
 
                         reject_sup = (size_diff, count1, len_sup) in excluded \
-                                     or size_diff < min_spikes
+                            or size_diff < min_spikes
                     # Reject the superset and/or the subset accordingly:
                     if reject_sub and not reject_sup:
                         selected[id1] = False
@@ -2048,13 +2048,13 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                     # 2d spectrum case
                     if len(excluded[0]) == 2:
                         reject_1 = (
-                                       size1 - inter_size + k,
-                                       count1) in \
-                                   excluded or size1 - inter_size + k < min_spikes
+                            size1 - inter_size + k,
+                            count1) in \
+                            excluded or size1 - inter_size + k < min_spikes
                         reject_2 = (
-                                       size2 - inter_size + k,
-                                       count2) in excluded or \
-                                   size2 - inter_size + k < min_spikes
+                            size2 - inter_size + k,
+                            count2) in excluded or \
+                            size2 - inter_size + k < min_spikes
                     # 3d spectrum case
                     if len(excluded[0]) == 3:
                         len_1 = max(
@@ -2062,13 +2062,13 @@ def pattern_set_reduction(concepts, excluded, winlen, h=0, k=0, l=0,
                         len_2 = max(
                             np.abs(np.diff(np.array(conc2) % winlen)))
                         reject_1 = (
-                                       size1 - inter_size + k, count1,
-                                       len_1) in excluded or \
-                                   size1 - inter_size + k < min_spikes
+                            size1 - inter_size + k, count1,
+                            len_1) in excluded or \
+                            size1 - inter_size + k < min_spikes
                         reject_2 = (
-                                       size2 - inter_size + k, count2, len_2) \
-                                   in excluded or \
-                                   size2 - inter_size + k < min_spikes
+                            size2 - inter_size + k, count2, len_2) \
+                            in excluded or \
+                            size2 - inter_size + k < min_spikes
 
                     # Reject accordingly:
                     if reject_2 and not reject_1:
@@ -2184,7 +2184,7 @@ def concept_output_to_patterns(concepts, winlen, binsize, pvalue_spectrum=None,
         output_dict['lags'] = (bin_ids - bin_ids[0])[1:] * binsize
         # Times (in binsize units) in which the pattern occurs
         output_dict['times'] = sorted(conc[1]) * binsize + bin_ids[0] * \
-                               binsize + t_start
+            binsize + t_start
         # If None is given in input to the pval spectrum the pvalue
         # is set to -1 (pvalue spectrum not available)
         # pattern dictionary appended to the output
