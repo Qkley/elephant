@@ -1057,177 +1057,6 @@ def _fca_filter(concept, winlen, min_c, min_z, max_c, max_z, min_neu):
 
 
 def pvalue_spectrum(data, binsize, winlen, dither, n_surr, min_spikes=2,
-                    min_occ=2, max_spikes=None, max_occ=None, min_neu=1,
-                    spectrum='#'):
-    """
-    Compute the p-value spectrum of pattern signatures extracted from
-    surrogates of parallel spike trains, under the null hypothesis of
-    independent spiking.
-
-    * n_surr surrogates are obtained from each spike train by spike dithering
-    * pattern candidates (concepts) are collected from each surrogate data
-    * the signatures (number of spikes, number of occurrences) of all patterns
-      are computed, and their  occurrence probability estimated by their
-      occurrence frequency (p-value spectrum)
-
-
-    Parameters
-    ----------
-    data: list of neo.SpikeTrains
-        List containing the parallel spike trains to analyze
-    binsize: Quantity
-        The time precision used to discretize the data (binning).
-    winlen: int (positive)
-        The size (number of bins) of the sliding window used for the analysis.
-        The maximal length of a pattern (delay between first and last spike) is
-        then given by winlen*binsize
-    dither: Quantity
-        Amount of spike time dithering for creating the surrogates for
-        filtering the pattern spectrum. A spike at time t is placed randomly
-        within ]t-dither, t+dither[ (see also
-        elephant.spike_train_surrogates.dither_spikes).
-        Default: 15*pq.s
-    n_surr: int
-        Number of surrogates to generate to compute the p-value spectrum.
-        This number should be large (n_surr>=1000 is recommended for 100
-        spike trains in *sts*). If n_surr is 0, then the p-value spectrum is
-        not computed.
-        Default: 0
-    min_spikes: int (positive)
-        Minimum number of spikes of a sequence to be considered a pattern.
-        Default: 2
-    min_occ: int (positive)
-       Minimum number of occurrences of a sequence to be considered as a
-       pattern.
-       Default: 2
-    max_spikes: int (positive)
-        Maximum number of spikes of a sequence to be considered a pattern. If
-        None no maximal number of spikes is considered.
-        Default: None
-    max_occ: int (positive)
-        Maximum number of occurrences of a sequence to be considered as a
-        pattern. If None, no maximal number of occurrences is considered.
-        Default: None
-    min_neu: int (positive)
-        Minimum number of neurons in a sequence to considered a pattern.
-        Default: 1
-    spectrum: str
-        Defines the signature of the patterns, it can assume values:
-        '#': pattern spectrum using the as signature the pair:
-            (number of spikes, number of occurrence)
-        '3d#': pattern spectrum using the as signature the triplets:
-            (number of spikes, number of occurrence, difference between last
-            and first spike of the pattern)
-        Default: '#'
-
-    Returns
-    ------
-    pv_spec: list
-        if spectrum == '#':
-            A list of triplets (z,c,p), where (z,c) is a pattern signature
-            and p is the corresponding p-value (fraction of surrogates
-            containing signatures (z*,c*)>=(z,c)).
-        if spectrum == '3d#':
-            A list of triplets (z,c,l,p), where (z,c,l) is a pattern signature
-            and p is the corresponding p-value (fraction of surrogates
-            containing signatures (z*,c*,l*)>=(z,c,l)).
-        Signatures whose empirical p-value is 0 are not listed.
-
-    """
-    # Initializing variables for parallel computing
-    if HAVE_MPI:  # pragma: no cover
-        comm = MPI.COMM_WORLD  # create MPI communicator
-        rank = comm.Get_rank()  # get rank of current MPI task
-        size = comm.Get_size()  # get tot number of MPI tasks
-    else:
-        rank = 0
-        size = 1
-    # Check on number of surrogates
-    if n_surr <= 0:
-        raise AttributeError('n_surr has to be >0')
-    len_partition = n_surr // size  # length of each MPI task
-    len_remainder = n_surr % size
-
-    # For each surrogate collect the signatures (z,c) such that (z*,c*)>=(z,c)
-    # exists in that surrogate. Group such signatures (with repetition)
-    # list of all signatures found in surrogates, initialized to []
-    surr_sgnts = []
-
-    add_remainder = rank < len_remainder
-
-    time_surr_generation = 0
-    time_surr_mining = 0
-    time_surr_spectrum = 0
-
-    for i in range(len_partition + add_remainder):
-        current_time_surr_generation = time.time()
-        surrs = [surr.dither_spikes(
-            xx, dither=dither, n=1)[0] for xx in data]
-        time_surr_generation += time.time() - current_time_surr_generation
-        # Find all pattern signatures in the current surrogate data set
-        current_time_surr_mining = time.time()
-        surr_sgnt = concepts_mining(
-            surrs, binsize, winlen, min_spikes=min_spikes,
-            max_spikes=max_spikes, min_occ=min_occ, max_occ=max_occ,
-            min_neu=min_neu, report=spectrum)[0]
-        time_surr_mining += time.time() - current_time_surr_mining
-        current_time_surr_spectrum = time.time()
-        filled_sgnt = []
-        # List all signatures (z,c) <= (z*, c*), for each (z*,c*) in the
-        # current surrogate, and add it to the list of all signatures
-        if spectrum == '#':
-            for sgnt in surr_sgnt:
-                for j in range(min_spikes, sgnt[0] + 1):
-                    for k in range(min_occ, sgnt[1] + 1):
-                        filled_sgnt.append((j, k))
-        # List all signatures (z,c,l) <= (z*, c*, l*), for each (z*,c*,l*)
-        # in the current surrogate, and add it to the list of
-        # all signatures
-        if spectrum == '3d#':
-            for sgnt in surr_sgnt:
-                for j in range(min_spikes, sgnt[0] + 1):
-                    for k in range(min_occ, sgnt[1] + 1):
-                        filled_sgnt.append((j, k, sgnt[2]))
-        surr_sgnts.extend(list(set(filled_sgnt)))
-        time_surr_spectrum += time.time() - current_time_surr_spectrum
-    print("Time for surrogate generation on rank {}: {}".format(
-        rank,
-        time_surr_generation / (len_partition + add_remainder)))
-    print("Time for surrogate mining on rank {}: {}".format(
-        rank,
-        time_surr_mining / (len_partition + add_remainder)))
-    print("Time for surrogate spectrum on rank {}: {}".format(
-        rank,
-        time_surr_spectrum / (len_partition + add_remainder)))
-    # Collecting results on the first PCU
-    if rank != 0:  # pragma: no cover
-        comm.send(surr_sgnts, dest=0)
-        del surr_sgnts
-        return []
-    if rank == 0:
-        time_mpi = time.time()
-        for i in range(1, size):
-            recv_list = comm.recv(source=i)
-            surr_sgnts.extend(recv_list)
-        time_mpi = time.time() - time_mpi
-        print("Time for MPI gather: {}".format(
-            time_mpi))
-
-        time_pvalues = time.time()
-        # Compute the p-value spectrum, and return it
-        pv_spec = []
-        for sgnt in set(surr_sgnts):
-            sgnt = list(sgnt)
-            sgnt.append((sum(np.all(np.array(surr_sgnts) == sgnt, axis=1)
-                             ) / float(n_surr)))
-            pv_spec.append(sgnt)
-        time_pvalues = time.time() - time_pvalues
-        print("Time for last loop in pvalue_spectrum: {}".format(
-            time_pvalues))
-        return pv_spec
-
-
-def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
                           min_occ=2, max_spikes=None, max_occ=None, min_neu=1,
                           spectrum='#'):
     """
@@ -1332,7 +1161,7 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
 
     if spectrum == '#':
         max_occs = np.empty(shape=(len_partition + add_remainder,
-                                   max_spikes - min_spikes + 1, 1),
+                                   max_spikes - min_spikes + 1),
                             dtype=np.uint16)
     else:
         max_occs = np.empty(shape=(len_partition + add_remainder,
@@ -1350,6 +1179,8 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
             surrs, binsize, winlen, min_spikes=min_spikes,
             max_spikes=max_spikes, min_occ=min_occ, max_occ=max_occ,
             min_neu=min_neu, report=spectrum)[0]
+        # The last entry of the signature is the number of times the
+        # signature appeared. This entry is not needed here.
         surr_concepts = surr_concepts[:, :-1]
         time_surr_mining += time.time() - current_time_surr_mining
         current_time_surr_spectrum = time.time()
@@ -1399,10 +1230,11 @@ def pvalue_spectrum_numpy(data, binsize, winlen, dither, n_surr, min_spikes=2,
     return pv_spec
 
 
-def _get_pvalue_spec(max_occs, min_spikes, max_spikes, min_occ,
-                     n_surr, winlen, spectrum):
+def _get_pvalue_spec(max_occs, min_spikes, max_spikes, min_occ, n_surr, winlen,
+                     spectrum):
     """
-    Wrapper to the 2d and 3d version of the p-value spectrum getter.
+    This function converts the list of maximal occurrences into the
+    corresponding p-value spectrum.
 
     Parameters
     ----------
@@ -1417,153 +1249,49 @@ def _get_pvalue_spec(max_occs, min_spikes, max_spikes, min_occ,
 
     Returns
     -------
-
-    """
     if spectrum == '#':
-        return _get_pvalue_spec_2d(
-            max_occs, min_spikes, max_spikes, min_occ, n_surr)
-    return _get_pvalue_spec_3d(
-        max_occs, min_spikes, max_spikes, min_occ, n_surr, winlen)
-
-
-def _get_pvalue_spec_2d(max_occs, min_spikes, max_spikes, min_occ,
-                        n_surr):
-    """
-    This function computes the P-value spectrum for 2d-Spade from the maximal
-    occurence per pattern size in each realization.
-
-    Parameters
-    ----------
-    max_occs: np.ndarray
-    min_spikes: int
-    max_spikes: int
-    min_occ: int
-    n_surr: int
-
-    Returns
-    -------
     List[List]:
         each entry has the form: [pattern_size, pattern_occ, p_value]
-    """
-    pv_spec = []
-    for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
-        max_occs_size = max_occs[:, size_id]
-        counts, occs = np.histogram(
-            max_occs_size,
-            bins=np.arange(min_occ,
-                           np.max(max_occs_size) + 2))
-        occs = occs[:-1].astype(int)
-
-        # The following line summarizes this two statements:
-        # prob_mass_func = counts / n_surr
-        # pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
-        # but it gives less numerical side effects like 1.0 -> 0.99999
-
-        pvalues = np.cumsum(counts[::-1])[::-1] / n_surr
-
-        for occ_id, occ in enumerate(occs):
-            pv_spec.append([pt_size, occ, pvalues[occ_id]])
-    return pv_spec
-
-
-def _get_pvalue_spec_3d(max_occs, min_spikes, max_spikes, min_occ,
-                        n_surr, winlen):
-    """
-    This function computes the P-value spectrum for 3d-Spade from the maximal
-    occurence per pattern size and duration in each realization.
-
-    Parameters
-    ----------
-    max_occs: np.ndarray
-    min_spikes: int
-    max_spikes: int
-    min_occ: int
-    n_surr: int
-    winlen: int
-
-    Returns
-    -------
+    if spectrum == '3d#':
     List[List]:
         each entry has the form:
         [pattern_size, pattern_occ, pattern_dur, p_value]
     """
     pv_spec = []
-    for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
-        for dur in range(winlen):
-            max_occs_size_dur = max_occs[:, size_id, dur]
+    if spectrum == '#':
+        for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
+            max_occs_size = max_occs[:, size_id]
             counts, occs = np.histogram(
-                max_occs_size_dur,
-                bins=np.arange(min_occ,
-                               np.max(max_occs_size_dur) + 2))
-            occs = occs[:-1].astype(int)
-
-            # The following line summarizes this two statements:
-            # prob_mass_func = counts / n_surr
-            # pvalues = np.cumsum(prob_mass_func[::-1])[::-1]
-            # but it gives less numerical side effects like 1.0 -> 0.99999
+                max_occs_size,
+                bins=np.arange(min_occ, np.max(max_occs_size) + 2))
+            occs = occs[:-1].astype(np.uint16)
 
             pvalues = np.cumsum(counts[::-1])[::-1] / n_surr
 
             for occ_id, occ in enumerate(occs):
-                pv_spec.append([pt_size, occ, dur, pvalues[occ_id]])
+                pv_spec.append([pt_size, occ, pvalues[occ_id]])
+
+    elif spectrum == '3d#':
+        for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
+            for dur in range(winlen):
+                max_occs_size_dur = max_occs[:, size_id, dur]
+                counts, occs = np.histogram(
+                    max_occs_size_dur,
+                    bins=np.arange(min_occ,
+                                   np.max(max_occs_size_dur) + 2))
+                occs = occs[:-1].astype(np.uint16)
+
+                pvalues = np.cumsum(counts[::-1])[::-1] / n_surr
+
+                for occ_id, occ in enumerate(occs):
+                    pv_spec.append([pt_size, occ, dur, pvalues[occ_id]])
+
+    # TODO: Think of returning here a numpy array.
+    #  pv_spec = np.array(pv_spec)
     return pv_spec
 
 
-def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen,
-                 spectrum):
-    """
-    Wrapper to the 2d and 3d version of the maximal occurence getter.
-
-    Parameters
-    ----------
-    surr_concepts: List[List]
-    min_spikes: int
-    max_spikes: int
-    winlen: int
-    spectrum: str
-        can be '#' or '3d#'.
-
-    Returns
-    -------
-
-    """
-    if spectrum == '#':
-        return _get_max_occ_2d(surr_concepts, min_spikes, max_spikes)
-    return _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen)
-
-
-def _get_max_occ_2d(surr_concepts, min_spikes, max_spikes):
-    """
-    This function takes from a list of surrogate_concepts those concepts which
-    have the highest occurrence for a given pattern size.
-
-    Parameters
-    ----------
-    surr_concepts: List[List]
-    min_spikes: int
-    max_spikes: int
-
-    Returns
-    -------
-    np.ndarray:
-        One-dimensional array. Each element corresponds to a highest occurrence
-        for a specific pattern_size (which range from min_spikes to
-        max_spikes).
-    """
-    max_occ = np.zeros(shape=(max_spikes - min_spikes + 1))
-    for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
-        concepts_for_size = surr_concepts[
-                                surr_concepts[:, 0] == pt_size][:, 1]
-        max_occ[size_id] = np.max(concepts_for_size,
-                                  initial=0)
-
-    for pt_size in range(max_spikes - 1, min_spikes - 1, -1):
-        size_id = pt_size - min_spikes
-        max_occ[size_id] = np.max(max_occ[size_id:size_id + 2])
-    return max_occ
-
-
-def _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen):
+def _get_max_occ(surr_concepts, min_spikes, max_spikes, winlen, spectrum):
     """
     This function takes from a list of surrogate_concepts those concepts which
     have the highest occurrence for a given pattern size and duration.
@@ -1584,18 +1312,33 @@ def _get_max_occ_3d(surr_concepts, min_spikes, max_spikes, winlen):
         The first axis corresponds to the pattern size the second to the
         duration.
     """
-    max_occ = np.zeros(shape=(max_spikes - min_spikes + 1,
-                              winlen))
-    for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
-        concepts_for_size = surr_concepts[
-                                surr_concepts[:, 0] == pt_size][:, 1:]
-        for dur in range(winlen):
-            occs = concepts_for_size[concepts_for_size[:, 1] == dur][:, 0]
-            max_occ[size_id, dur] = np.max(occs, initial=0)
 
-    for pt_size in range(max_spikes - 1, min_spikes - 1, -1):
-        size_id = pt_size - min_spikes
-        max_occ[size_id] = np.max(max_occ[size_id:size_id + 2], axis=0)
+    if spectrum == '#':
+        max_occ = np.zeros(shape=(max_spikes - min_spikes + 1))
+
+        for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
+            concepts_for_size = surr_concepts[
+                                    surr_concepts[:, 0] == pt_size][:, 1]
+            max_occ[size_id] = np.max(concepts_for_size, initial=0)
+
+        for pt_size in range(max_spikes - 1, min_spikes - 1, -1):
+            size_id = pt_size - min_spikes
+            max_occ[size_id] = np.max(max_occ[size_id:size_id + 2])
+
+    elif spectrum == '3d#':
+        max_occ = np.zeros(shape=(max_spikes - min_spikes + 1, winlen))
+
+        for size_id, pt_size in enumerate(range(min_spikes, max_spikes + 1)):
+            concepts_for_size = surr_concepts[
+                                    surr_concepts[:, 0] == pt_size][:, 1:]
+
+            for dur in range(winlen):
+                occs = concepts_for_size[concepts_for_size[:, 1] == dur][:, 0]
+                max_occ[size_id, dur] = np.max(occs, initial=0)
+
+        for pt_size in range(max_spikes - 1, min_spikes - 1, -1):
+            size_id = pt_size - min_spikes
+            max_occ[size_id] = np.max(max_occ[size_id:size_id + 2], axis=0)
 
     return max_occ
 
